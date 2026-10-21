@@ -238,6 +238,32 @@ details.attrs summary::-webkit-details-marker { display: none; }
 .pills input:checked + span { background: var(--accent); color: var(--accent-fg); }
 .note-box { border-top: 1px solid var(--line); margin-top: 16px; }
 
+/* ===== 樹種一覧 ===== */
+.segscroll { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 10px -18px 10px; padding: 0 18px; }
+.segscroll::-webkit-scrollbar { display: none; }
+.segscroll button { flex: none; border: 0; border-radius: 16px; padding: 7px 13px; background: var(--surface-2); color: var(--muted); font-weight: 700; font-size: 13px; }
+.segscroll button.on { background: var(--accent); color: var(--accent-fg); }
+details.grp { border-top: 1px solid var(--line); }
+details.grp summary { list-style: none; display: flex; align-items: center; gap: 10px; padding: 12px 2px; cursor: pointer; }
+details.grp summary::-webkit-details-marker { display: none; }
+details.grp summary::after { content: ""; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); margin: -4px 4px 0 0; transition: transform .2s; }
+details.grp[open] summary::after { transform: rotate(-135deg); margin-top: 4px; }
+.grp-name { font-weight: 800; font-size: 15px; }
+.grp-meta { flex: 1; font-size: 12px; color: var(--muted); }
+.grp-bar { width: 56px; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; flex: none; }
+.grp-bar span { display: block; height: 100%; background: var(--green-600); }
+details.grp .list { margin: 0 0 8px; padding-left: 4px; }
+.sp-cnt { display: block; font-weight: 800; color: var(--fg); font-size: 14px; font-variant-numeric: tabular-nums; }
+.sp-share { display: block; font-size: 11px; color: var(--muted); }
+.taglist { display: flex; flex-wrap: wrap; gap: 6px; margin: -4px 0 12px; }
+.taglist .tag { font-size: 12px; padding: 3px 9px; border-radius: 12px; }
+.taglist button.tag { border: 0; cursor: pointer; font-family: inherit; }
+.backbtn { border: 0; background: none; color: var(--accent); font-weight: 700; padding: 0 0 10px; display: inline-flex; align-items: center; gap: 2px; }
+.backbtn svg.ic { width: 18px; height: 18px; }
+.note-line { background: var(--green-50); border-radius: var(--r-md); padding: 8px 12px; font-size: 12.5px; color: var(--muted); margin-bottom: 12px; }
+.split { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--surface-2); margin: 6px 0 4px; }
+.split span { display: block; height: 100%; }
+
 /* ===== レイヤー選択 ===== */
 .popover {
   position: fixed; z-index: 25; right: 72px; bottom: calc(var(--nav-h) + var(--safe-b) + 14px); width: min(300px, calc(100vw - 90px));
@@ -361,6 +387,7 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
 <!-- 下部ナビ -->
 <nav class="bottomnav" aria-label="メニュー">
   <button data-pane="list"><i data-ic="list"></i>一覧</button>
+  <button data-pane="species"><i data-ic="leaf"></i>樹種</button>
   <button data-pane="stats"><i data-ic="chart"></i>統計</button>
   <button data-pane="notes"><i data-ic="bookmark"></i>マイメモ<span id="noteCnt" class="cnt" hidden></span></button>
   <button data-pane="reports"><i data-ic="chat"></i>報告</button>
@@ -413,6 +440,24 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
         <button id="csvBtn" class="btn line" style="min-height:32px;padding:0 10px;font-size:12px">CSV</button></span></div>
       <ol id="resultList" class="list"></ol>
     </div>
+
+    <!-- 樹種一覧 -->
+    <div class="pane" id="pane-species">
+      <input id="spSearch" class="inp" type="search" placeholder="樹種名・科名で探す（例：サクラ、バラ科）" autocomplete="off">
+      <div class="segscroll" id="spGroup">
+        <button data-g="fam" class="on">科別</button>
+        <button data-g="leaf">常緑・落葉</button>
+        <button data-g="form">針葉・広葉</button>
+        <button data-g="cat">高木・中木</button>
+        <button data-g="kana">五十音</button>
+        <button data-g="count">本数順</button>
+      </div>
+      <div class="seg" id="spScope" style="margin-bottom:10px"><button data-v="all" class="on">23区全体</button><button data-v="view">地図の表示範囲</button></div>
+      <div class="listhead"><span id="spMeta"></span><button id="spCsv" class="btn line" style="min-height:32px;padding:0 10px;font-size:12px">CSV</button></div>
+      <div id="spBody"></div>
+      <p class="muted small">科はAPG分類体系によります。表記ゆれ（例：ザクラ・さくら → サクラ）はまとめて表示しています。</p>
+    </div>
+    <div class="pane" id="pane-spdetail"></div>
 
     <!-- 統計 -->
     <div class="pane" id="pane-stats">
@@ -474,6 +519,413 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
 </div>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<!--
+  樹種の分類表（編集できます）。1行 = データ上の樹種名,標準名(空欄=同じ),科,葉,形,注記
+  ・葉：常=常緑 落=落葉 半=半常緑 -=不明　・形：広=広葉樹 針=針葉樹 ヤ=ヤシ類 竹=タケ類 イ=イチョウ類 他=その他
+  ・表にない樹種は「未分類」、"/" を含む樹種名は「混植（複数樹種）」として扱います。
+-->
+<script type="text/plain" id="speciesMaster">
+イチョウ,,イチョウ科,落,イ,
+トキワマンサク,,マンサク科,常,広,
+ハナミズキ,,ミズキ科,落,広,
+スズカケノキ,,スズカケノキ科,落,広,プラタナス類
+プラタナス,スズカケノキ,スズカケノキ科,落,広,プラタナス類
+スズカケノキ属,スズカケノキ,スズカケノキ科,落,広,プラタナス類
+トウカエデ,,ムクロジ科,落,広,
+キンモクセイ,,モクセイ科,常,広,
+キンモク,キンモクセイ,モクセイ科,常,広,
+ケヤキ,,ニレ科,落,広,
+クスノキ,,クスノキ科,常,広,
+サクラ,,バラ科,落,広,品種不明のサクラ類
+ザクラ,サクラ,バラ科,落,広,品種不明のサクラ類
+さくら,サクラ,バラ科,落,広,品種不明のサクラ類
+ソメイヨシノ,,バラ科,落,広,
+シダレザクラ,,バラ科,落,広,
+サトザクラ類,,バラ科,落,広,
+ヨウコウ,,バラ科,落,広,サクラの品種「陽光」
+コバザクラ,,バラ科,落,広,サクラ類と推定
+ムクゲ,,アオイ科,落,広,
+ハナカイドウ,,バラ科,落,広,
+カイドウ,,バラ科,落,広,
+モッコク,,モッコク科,常,広,
+マテバシイ,,ブナ科,常,広,
+ハナズオウ,,マメ科,落,広,
+アメリカハナズオウ,,マメ科,落,広,
+ツバキ,,ツバキ科,常,広,
+ツバキ類,,ツバキ科,常,広,
+ヤブツバキ,,ツバキ科,常,広,
+オトメツバキ,,ツバキ科,常,広,
+コウオトメツバキ,,ツバキ科,常,広,
+カンツバキ,,ツバキ科,常,広,
+タチカンツバキ,,ツバキ科,常,広,
+サザンカ,,ツバキ科,常,広,
+サザンカ類,,ツバキ科,常,広,
+ヒメサザンカ,,ツバキ科,常,広,
+ナツツバキ,,ツバキ科,落,広,
+ヒメシャラ,,ツバキ科,落,広,
+チャノキ,,ツバキ科,常,広,
+ツバキ科,,ツバキ科,-,広,種不明
+クロガネモチ,,モチノキ科,常,広,
+ソヨゴ,,モチノキ科,常,広,
+モチノキ,,モチノキ科,常,広,
+ナナミノキ,,モチノキ科,常,広,
+イヌツゲ,,モチノキ科,常,広,
+キンメツゲ,,モチノキ科,常,広,イヌツゲの品種
+ウメモドキ,,モチノキ科,落,広,
+セイヨウヒイラギ,,モチノキ科,常,広,
+アメリカヒイラギ,,モチノキ科,常,広,
+シナヒイラギ,,モチノキ科,常,広,
+ヒイラギモチ,シナヒイラギ,モチノキ科,常,広,
+モチノキ科,,モチノキ科,-,広,種不明
+ヤマモモ,,ヤマモモ科,常,広,
+ホルトノキ,,ホルトノキ科,常,広,
+コブシ,,モクレン科,落,広,
+シデコブシ,,モクレン科,落,広,
+モクレン,,モクレン科,落,広,
+シモクレン,,モクレン科,落,広,
+ハクモクレン,,モクレン科,落,広,
+トウモクレン,,モクレン科,落,広,
+ホオノキ,,モクレン科,落,広,
+ユリノキ,,モクレン科,落,広,
+ワダスメモリー,,モクレン科,落,広,モクレン属の品種
+カラタネオガタマ,,モクレン科,常,広,
+オガタマノキ,,モクレン科,常,広,
+オガタマ,オガタマノキ,モクレン科,常,広,
+ミヤマガンショウ,,モクレン科,常,広,
+タイサンボク,,モクレン科,常,広,
+タイサンボクリトルジェム,タイサンボク‘リトルジェム’,モクレン科,常,広,
+タイサンボク リトルジェム,タイサンボク‘リトルジェム’,モクレン科,常,広,
+ヒメタイサンボク,,モクレン科,半,広,
+モクレン属,,モクレン科,-,広,種不明
+マグノリア,,モクレン科,-,広,種不明
+アメリカフウ,モミジバフウ,フウ科,落,広,
+モミジバフウ,,フウ科,落,広,
+モミジバフウウ,モミジバフウ,フウ科,落,広,
+フウ,,フウ科,落,広,
+アオギリ,,アオイ科,落,広,
+ボダイジュ,,アオイ科,落,広,
+ナツボダイジュ,,アオイ科,落,広,
+オオバボダイジュ,,アオイ科,落,広,
+シナノキ,,アオイ科,落,広,
+シナノキ属,,アオイ科,落,広,
+セイヨウシナノキ,,アオイ科,落,広,
+フヨウ,,アオイ科,落,広,
+アオイ科,,アオイ科,-,広,種不明
+マサキ,,ニシキギ科,常,広,
+フイリマサキ,,ニシキギ科,常,広,
+ニシキギ,,ニシキギ科,落,広,
+マユミ,,ニシキギ科,落,広,
+コマユミ,,ニシキギ科,落,広,
+ニシキギ属,,ニシキギ科,-,広,種不明
+サルスベリ,,ミソハギ科,落,広,
+ザクロ,,ミソハギ科,落,広,
+ウバメガシ,,ブナ科,常,広,
+シラカシ,,ブナ科,常,広,
+しらかし,シラカシ,ブナ科,常,広,
+アラカシ,,ブナ科,常,広,
+ツクバネガシ,,ブナ科,常,広,
+スダジイ,,ブナ科,常,広,
+シイノキ,,ブナ科,常,広,
+コナラ,,ブナ科,落,広,
+クヌギ,,ブナ科,落,広,
+クリ,,ブナ科,落,広,
+レッドオーク,,ブナ科,落,広,
+アメリカガシワ,,ブナ科,落,広,
+イギリスナラ,,ブナ科,落,広,
+エンジュ,,マメ科,落,広,
+イヌエンジュ,,マメ科,落,広,
+ニセアカシア,,マメ科,落,広,
+ネムノキ,,マメ科,落,広,
+フジ,,マメ科,落,広,
+ハギ属,,マメ科,落,広,
+エニシダ,,マメ科,落,広,
+ミモザ,,マメ科,常,広,
+モリシマアカシア,,マメ科,常,広,
+カツラ,,カツラ科,落,広,
+ヤマボウシ,,ミズキ科,落,広,
+常緑ヤマボウシ,,ミズキ科,常,広,
+ジョウリョクヤマボウシ,常緑ヤマボウシ,ミズキ科,常,広,
+ミズキ,,ミズキ科,落,広,
+サンシュユ,,ミズキ科,落,広,
+ハンカチノキ,,ヌマミズキ科,落,広,
+ライラック,,モクセイ科,落,広,
+ヒイラギモクセイ,,モクセイ科,常,広,
+ギンモクセイ,,モクセイ科,常,広,
+シマモクセイ,,モクセイ科,常,広,
+モクセイ属,,モクセイ科,常,広,種不明
+ヒイラギ,,モクセイ科,常,広,
+トウネズミモチ,,モクセイ科,常,広,
+ネズミモチ,,モクセイ科,常,広,
+シマトネリコ,,モクセイ科,常,広,
+マルバアオダモ,,モクセイ科,落,広,
+イボタノキ,,モクセイ科,落,広,
+セイヨウイボタ,,モクセイ科,半,広,
+イボタノキ属,,モクセイ科,-,広,種不明
+ヒトツバタゴ,,モクセイ科,落,広,
+アメリカヒトツバタゴ,,モクセイ科,落,広,
+レンギョウ,,モクセイ科,落,広,
+ロウバイ,,ロウバイ科,落,広,
+ソシンロウバイ,,ロウバイ科,落,広,
+マンサク,,マンサク科,落,広,
+マンサ,マンサク,マンサク科,落,広,
+シナマンサク,,マンサク科,落,広,
+ベニバナトキワマンサク,,マンサク科,常,広,
+トキワマンサク属,,マンサク科,常,広,
+イスノキ,,マンサク科,常,広,
+ヒュウガミズキ,,マンサク科,落,広,
+トサミズキ,,マンサク科,落,広,
+トサミズキ属,,マンサク科,落,広,
+コウヤミズキ,,マンサク科,落,広,
+ロドレイア,,マンサク科,常,広,
+ロドレイヤ,ロドレイア,マンサク科,常,広,
+ロドレイア　ヘンリー,ロドレイア,マンサク科,常,広,
+マンサク科,,マンサク科,-,広,種不明
+ホウキモモ,,バラ科,落,広,
+ハナモモ,,バラ科,落,広,
+モモ,,バラ科,落,広,
+シダレモモ,,バラ科,落,広,
+テルテモモ,,バラ科,落,広,
+モモ属,,バラ科,落,広,種不明
+ミロバランスモモ,,バラ科,落,広,
+ウメ,,バラ科,落,広,
+ウメ類,ウメ,バラ科,落,広,
+コウバイ,ウメ,バラ科,落,広,
+アンズ,,バラ科,落,広,
+アプリコット,アンズ,バラ科,落,広,
+ニワウメ,,バラ科,落,広,
+ヒメリンゴ,,バラ科,落,広,
+イヌリンゴ,,バラ科,落,広,
+ハナリンゴ,,バラ科,落,広,
+リンゴ,,バラ科,落,広,
+マルメロ,,バラ科,落,広,
+ボケ,,バラ科,落,広,
+シャリンバイ,,バラ科,常,広,
+ヒメシャリンバイ,,バラ科,常,広,
+マルバシャリンバイ,,バラ科,常,広,
+カナメモチ,,バラ科,常,広,
+セイヨウベニカナメモチ,,バラ科,常,広,レッドロビン
+ベニカナメモチ,,バラ科,常,広,
+オオカナメモチ,,バラ科,常,広,
+アカメ,,バラ科,常,広,カナメモチ類と推定
+ビワ,,バラ科,常,広,
+セイヨウバクチノキ,,バラ科,常,広,
+トキワサンザシ,,バラ科,常,広,
+ピラカンサ,,バラ科,常,広,
+ピラカンサス,ピラカンサ,バラ科,常,広,
+ピラカンサ類,ピラカンサ,バラ科,常,広,
+タチバナモドキ,,バラ科,常,広,
+ホザキナナカマド,,バラ科,落,広,
+ナナカマド,,バラ科,落,広,
+ユキヤナギ,,バラ科,落,広,
+コデマリ,,バラ科,落,広,
+シモツケ,,バラ科,落,広,
+リキュウバイ,,バラ科,落,広,
+ザイフリボク,,バラ科,落,広,
+アメリカザイフリボク,,バラ科,落,広,ジューンベリー
+バラ類,,バラ科,落,広,
+ノイバラ,,バラ科,落,広,
+イノバラ,ノイバラ,バラ科,落,広,
+バラ科,,バラ科,-,広,種不明
+アキニレ,,ニレ科,落,広,
+エノキ,,アサ科,落,広,
+ムクノキ,,アサ科,落,広,
+ドウダンツツジ,,ツツジ科,落,広,
+ツツジ,,ツツジ科,-,広,種不明
+クルメツツジ,,ツツジ科,常,広,
+オオムラサキツツジ,,ツツジ科,常,広,
+オオムラサキ,オオムラサキツツジ,ツツジ科,常,広,
+キリシマツツジ,,ツツジ科,常,広,
+サツキ,,ツツジ科,常,広,
+ヤマツツジ,,ツツジ科,半,広,
+ミツバツツジ,,ツツジ科,落,広,
+ミツバツツジ類,,ツツジ科,落,広,
+シャクナゲ,,ツツジ科,常,広,
+シャクナゲ類,,ツツジ科,常,広,
+セイヨウシャクナゲ,,ツツジ科,常,広,
+ハクサンシャクナゲ,,ツツジ科,常,広,
+アセビ,,ツツジ科,常,広,
+カルミア,,ツツジ科,常,広,
+イチゴノキ,,ツツジ科,常,広,
+ストロベリーツリー,イチゴノキ,ツツジ科,常,広,
+ヒメイチゴノキ,,ツツジ科,常,広,
+ブルーベリー,,ツツジ科,落,広,
+サンゴジュ,,ガマズミ科,常,広,
+ハクサンボク,,ガマズミ科,常,広,
+ビブルヌムティヌス,,ガマズミ科,常,広,
+ガマズミ,,ガマズミ科,落,広,
+オオデマリ,,ガマズミ科,落,広,
+ヤブデマリ,,ガマズミ科,落,広,
+セイヨウテマリカンボク,,ガマズミ科,落,広,
+ニワトコ,,ガマズミ科,落,広,
+ガマズミ属,,ガマズミ科,-,広,種不明
+アベリア,,スイカズラ科,半,広,
+ハナゾノツクバネウツギ,アベリア,スイカズラ科,半,広,
+ツクバネウツギ,,スイカズラ科,落,広,
+タニウツギ,,スイカズラ科,落,広,
+ハコネウツギ,,スイカズラ科,落,広,
+アジサイ,,アジサイ科,落,広,
+アジサイ類,,アジサイ科,落,広,
+カシワバアジサイ,,アジサイ科,落,広,
+ウツギ,,アジサイ科,落,広,
+ウツギ属,,アジサイ科,落,広,
+ナンテン,,メギ科,常,広,
+オタフクナンテン,,メギ科,常,広,
+ヒイラギナンテン,,メギ科,常,広,
+クチナシ,,アカネ科,常,広,
+コクチナシ,,アカネ科,常,広,
+ハクチョウゲ,,アカネ科,常,広,
+フェイジョア,,フトモモ科,常,広,
+ギンバイカ,,フトモモ科,常,広,
+ギンコウバイ,ギンバイカ,フトモモ科,常,広,
+ブラシノキ,,フトモモ科,常,広,
+カクレミノ,,ウコギ科,常,広,
+ヤツデ,,ウコギ科,常,広,
+ヤドリフカノキ,,ウコギ科,常,広,カポック（シェフレラ）
+カポック,ヤドリフカノキ,ウコギ科,常,広,
+カボック,ヤドリフカノキ,ウコギ科,常,広,
+ナンキンハゼ,,トウダイグサ科,落,広,
+アカメガシワ,,トウダイグサ科,落,広,
+シダレヤナギ,,ヤナギ科,落,広,
+カワヤナギ,,ヤナギ科,落,広,
+タチヤナギ,,ヤナギ科,落,広,
+アカメヤナギ,,ヤナギ科,落,広,
+トチノキ,,ムクロジ科,落,広,
+ベニバナトチノキ,,ムクロジ科,落,広,
+ムクロジ,,ムクロジ科,落,広,
+モクゲンジ,,ムクロジ科,落,広,
+イロハモミジ,,ムクロジ科,落,広,
+オオモミジ,,ムクロジ科,落,広,
+モミジ,,ムクロジ科,落,広,
+シダレモミジ,,ムクロジ科,落,広,
+モミジ司シルエット,,ムクロジ科,落,広,カエデの品種「司シルエット」
+カエデ,,ムクロジ科,落,広,
+ハナノキ,,ムクロジ科,落,広,
+アメリカハナノキ,,ムクロジ科,落,広,
+ハウチワカエデ,,ムクロジ科,落,広,
+イタヤカエデ,,ムクロジ科,落,広,
+ネグンドカエデ,,ムクロジ科,落,広,
+ノルウェーカエデ,,ムクロジ科,落,広,
+サトウカエデ,,ムクロジ科,落,広,
+ユズリハ,,ユズリハ科,常,広,
+ヒメユズリハ,,ユズリハ科,常,広,
+タブノキ,,クスノキ科,常,広,
+ホソバタブ,,クスノキ科,常,広,
+ゲッケイジュ,,クスノキ科,常,広,
+シロダモ,,クスノキ科,常,広,
+ニッケイ,,クスノキ科,常,広,
+シバニッケイ,,クスノキ科,常,広,
+クロモジ,,クスノキ科,落,広,
+ハクウンボク,,エゴノキ科,落,広,
+エゴノキ,,エゴノキ科,落,広,
+サカキ,,モッコク科,常,広,
+フイリサカキ,,モッコク科,常,広,
+ヒサカキ,,モッコク科,常,広,
+ハマヒサカキ,,モッコク科,常,広,
+ツゲ,,ツゲ科,常,広,
+ボックスウッド,,ツゲ科,常,広,
+ムラサキシキブ,,シソ科,落,広,
+コムラサキ,,シソ科,落,広,
+セイヨウニンジンボク,,シソ科,落,広,
+ナワシログミ,,グミ科,常,広,
+オオバグミ,,グミ科,常,広,
+ツルグミ,,グミ科,常,広,
+アキグミ,,グミ科,落,広,
+ニワグミ,,グミ科,落,広,
+グミ,,グミ科,-,広,種不明
+アオキ,,アオキ科,常,広,
+トベラ,,トベラ科,常,広,
+ナツミカン,,ミカン科,常,広,
+ユズ,,ミカン科,常,広,
+キンカン,,ミカン科,常,広,
+カラタチ,,ミカン科,落,広,
+サンショウ,,ミカン科,落,広,
+キョウチクトウ,,キョウチクトウ科,常,広,
+イヌビワ,,クワ科,落,広,
+イチジク,,クワ科,落,広,
+クワ,,クワ科,落,広,
+ヤマグワ,,クワ科,落,広,
+マグワ,,クワ科,落,広,
+インドゴムノキ,,クワ科,常,広,
+フィカス,,クワ科,常,広,
+アカシデ,,カバノキ科,落,広,
+イヌシデ,,カバノキ科,落,広,
+クマシデ,,カバノキ科,落,広,
+ケヤマハンノキ,,カバノキ科,落,広,
+カキノキ,,カキノキ科,落,広,
+マメガキ,,カキノキ科,落,広,
+カキノキ属,,カキノキ科,落,広,
+カキ属,カキノキ属,カキノキ科,落,広,
+リョウブ,,リョウブ科,落,広,
+センダン,,センダン科,落,広,
+ハイノキ,,ハイノキ科,常,広,
+ハゼノキ,,ウルシ科,落,広,
+ヌルデ,,ウルシ科,落,広,
+ジンチョウゲ,,ジンチョウゲ科,常,広,
+チンチョウゲ,ジンチョウゲ,ジンチョウゲ科,常,広,
+ミツマタ,,ジンチョウゲ科,落,広,
+ノウゼンカズラ,,ノウゼンカズラ科,落,広,
+ノウゼンカツラ,ノウゼンカズラ,ノウゼンカズラ科,落,広,
+ジャカランダ,,ノウゼンカズラ科,落,広,
+ニワウルシ,,ニガキ科,落,広,
+キンシバイ,,オトギリソウ科,半,広,
+ゴンズイ,,ミツバウツギ科,落,広,
+シキミ,,マツブサ科,常,広,
+オニグルミ,,クルミ科,落,広,
+キリ,,キリ科,落,広,
+タイワンレンギョウ,,クマツヅラ科,常,広,デュランタ
+キダチチョウセンアサガオ,,ナス科,半,広,
+イヌホオズキ,,ナス科,-,他,草本
+ユッカ,,キジカクシ科,常,他,
+ユッカ類,ユッカ,キジカクシ科,常,他,
+ユッカ・エレファンティペス,,キジカクシ科,常,他,
+キミガヨラン,,キジカクシ科,常,他,
+アツバキミガヨラン,,キジカクシ科,常,他,
+ニオイシュロラン,,キジカクシ科,常,他,
+シュロ,,ヤシ科,常,ヤ,
+トウジュロ,,ヤシ科,常,ヤ,
+ビロウ,,ヤシ科,常,ヤ,
+ワシントンヤシ,,ヤシ科,常,ヤ,
+カナリーヤシ,,ヤシ科,常,ヤ,
+ヤシ科sp.,ヤシ科（種不明）,ヤシ科,常,ヤ,
+モウソウチク,,イネ科,常,竹,
+メタセコイア,,ヒノキ科,落,針,
+カイヅカイブキ,,ヒノキ科,常,針,
+カイズカイブキ,カイヅカイブキ,ヒノキ科,常,針,
+イブキ,,ヒノキ科,常,針,
+ビャクシン,,ヒノキ科,常,針,
+コロラドビャクシン,,ヒノキ科,常,針,
+ネズミサシ,,ヒノキ科,常,針,
+ヒノキ,,ヒノキ科,常,針,
+サワラ,,ヒノキ科,常,針,
+レイランドヒノキ,,ヒノキ科,常,針,
+ヒバ,,ヒノキ科,常,針,
+ニオイヒバ,,ヒノキ科,常,針,
+コノテガシワ,,ヒノキ科,常,針,
+コノテヒバ,,ヒノキ科,常,針,
+ゴールドクレスト,,ヒノキ科,常,針,
+イトスギ,,ヒノキ科,常,針,
+モントレーイトスギ,,ヒノキ科,常,針,
+アリゾナイトスギ,,ヒノキ科,常,針,
+アカマツ,,マツ科,常,針,
+クロマツ,,マツ科,常,針,
+アイグロマツ,,マツ科,常,針,
+マツ,,マツ科,常,針,
+ヒマラヤスギ,,マツ科,常,針,
+モミノキ,,マツ科,常,針,
+コロラドトウヒ,,マツ科,常,針,
+ドイツトウヒ,,マツ科,常,針,
+イチイ,,イチイ科,常,針,
+キャラボク,,イチイ科,常,針,
+カヤ,,イチイ科,常,針,
+イヌマキ,,マキ科,常,針,
+ナギ,,マキ科,常,針,
+コウヤマキ,,コウヤマキ科,常,針,
+シマナンヨウスギ,,ナンヨウスギ科,常,針,
+ヒメヒイラギ,,モチノキ科,常,広,
+モクレンモドキ,,モクレン科,-,広,
+シャクナゲモドキ,,マンサク科,常,広,ロドレイア属
+キンバイカ,ギンバイカ,フトモモ科,常,広,ギンバイカの誤記と推定
+</script>
 <script>
 /* =====================================================================
  * 設定：公開するリポジトリに合わせて変更できます
@@ -564,6 +1016,8 @@ window.NoteStore = (function () {
     camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4Z"/><circle cx="12" cy="13" r="3.5"/>',
     tree: '<circle cx="12" cy="9" r="6"/><path d="M12 15v6"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+    leaf: '<path d="M5 19c0-8 5-14 15-15 0 10-6 15-14 15"/><path d="M5 19 13 11"/>',
+    back: '<path d="m15 6-6 6 6 6"/>',
   };
   const ic = (n) => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ""}</svg>`;
   const paintIcons = (root = document) => root.querySelectorAll("i[data-ic]").forEach((el) => { el.outerHTML = ic(el.dataset.ic); });
@@ -573,7 +1027,7 @@ window.NoteStore = (function () {
   const REPORT_TYPES = { "枝折れ・倒木の恐れ": "倒木・枝折れの恐れ", "枯れ・衰弱": "枯れ・衰弱", "病害虫": "病害虫", "損傷あり": "損傷（幹・根・支柱）", "撤去済み": "伐採・撤去されている" };
   const PALETTE = ["#2e7d32", "#f9a825", "#c2185b", "#1565c0", "#ef6c00", "#6a1b9a", "#00897b", "#8d6e63", "#d84315", "#5e35b1"];
   const CAT_COLORS = { "高木": "#2e7d32", "中木": "#8bc34a" };
-  const TITLES = { filter: "絞り込み", list: "一覧", stats: "統計", notes: "マイメモ", reports: "みんなの報告", about: "このアプリについて" };
+  const TITLES = { filter: "絞り込み", list: "一覧", species: "樹種一覧", spdetail: "樹種の情報", stats: "統計", notes: "マイメモ", reports: "みんなの報告", about: "このアプリについて" };
 
   // ---------- 状態 ----------
   let D, C, N, mask, matchCount = 0;
@@ -736,7 +1190,9 @@ window.NoteStore = (function () {
     const idm = q.match(/^[#＃]\s*(\d+)$/);
     if (idm) { const id = +idm[1]; parts.push(["==", ["get", "i"], id]); tests.push((i) => i === id); }
     else if (q) {
-      const s = new Set(dictMatches(D.sp, q)), r = new Set(dictMatches(D.route, q)), d = new Set(dictMatches(D.road, q)), w = new Set(dictMatches(D.ward, q));
+      const s = new Set(dictMatches(D.sp, q));
+      SPI.forEach((v, k) => { if (toKata(v.std).includes(q) || v.fam.includes(q)) s.add(k); });
+      const r = new Set(dictMatches(D.route, q)), d = new Set(dictMatches(D.road, q)), w = new Set(dictMatches(D.ward, q));
       parts.push(["any", ["in", ["get", "sp"], ["literal", [...s]]], ["in", ["get", "route"], ["literal", [...r]]], ["in", ["get", "road"], ["literal", [...d]]], ["in", ["get", "ward"], ["literal", [...w]]]]);
       tests.push((i) => s.has(C.sp[i]) || r.has(C.route[i]) || d.has(C.road[i]) || w.has(C.ward[i]));
     }
@@ -776,7 +1232,7 @@ window.NoteStore = (function () {
   const filterCount = () => F.sp.size + ["ward", "cat", "type", "route"].filter((k) => F[k] !== "").length + ["hMin", "hMax", "gMin", "gMax"].filter((k) => F[k] != null).length + (F.onlyNoted ? 1 : 0);
 
   function syncFilterForm() {
-    $("#spChips").innerHTML = [...F.sp].map((k) => `<span class="chip">${esc(D.sp[k])}<button data-rm="${k}" aria-label="外す">×</button></span>`).join("");
+    $("#spChips").innerHTML = selectedStd().map((n) => `<span class="chip">${esc(n)}<button data-rm="${esc(n)}" aria-label="外す">×</button></span>`).join("");
     for (const k of ["ward", "type", "route"]) $("#" + k).value = F[k];
     $$("#catSeg button").forEach((b) => b.classList.toggle("on", b.dataset.v === F.cat));
     for (const k of ["hMin", "hMax", "gMin", "gMax"]) $("#" + k).value = F[k] ?? "";
@@ -787,7 +1243,7 @@ window.NoteStore = (function () {
   function renderChipRow() {
     const out = [];
     const on = (label, key, val) => out.push(`<button class="qchip on" data-off="${key}" data-val="${val ?? ""}">${esc(label)}<span class="x">×</span></button>`);
-    F.sp.forEach((k) => on(D.sp[k], "sp", k));
+    selectedStd().forEach((name) => on(name, "std", name));
     if (F.ward !== "") on(D.ward[F.ward], "ward");
     if (F.cat !== "") on(D.cat[F.cat], "cat");
     if (F.type !== "") on(D.type[F.type], "type");
@@ -795,9 +1251,10 @@ window.NoteStore = (function () {
     if (F.hMin != null || F.hMax != null) on(`樹高 ${F.hMin ?? ""}〜${F.hMax ?? ""}m`, "h");
     if (F.gMin != null || F.gMax != null) on(`幹周 ${F.gMin ?? ""}〜${F.gMax ?? ""}cm`, "g");
     if (F.onlyNoted) on("メモの木", "onlyNoted");
-    CFG.quickSpecies.map((n) => D.sp.indexOf(n)).filter((k) => k >= 0 && !F.sp.has(k)).forEach((k) => {
-      const c = colorMode === "sp" && topSpecies.indexOf(k) < 10 ? PALETTE[topSpecies.indexOf(k)] : "";
-      out.push(`<button class="qchip" data-sp="${k}">${c ? `<i style="background:${c}"></i>` : ""}${esc(D.sp[k])}</button>`);
+    const sel = selectedStd();
+    CFG.quickSpecies.filter((n) => STD.has(n) && !sel.includes(n)).forEach((n) => {
+      const r = topSpecies.indexOf(STD.get(n).idx[0]), c = colorMode === "sp" && r > -1 && r < 10 ? PALETTE[r] : "";
+      out.push(`<button class="qchip" data-std="${esc(n)}">${c ? `<i style="background:${c}"></i>` : ""}${esc(n)}</button>`);
     });
     $("#chiprow").innerHTML = out.join("");
   }
@@ -816,6 +1273,7 @@ window.NoteStore = (function () {
     if (name === "list") renderList();
     if (name === "stats") renderStats();
     if (name === "filter") syncFilterForm();
+    if (name === "species") renderSpecies();
     if (name !== "detail") clearSelection();
   }
   function closeSheet() {
@@ -914,7 +1372,8 @@ window.NoteStore = (function () {
         <div class="kpi"><span>平均幹周</span><b>${gn ? Math.round(gs / gn) : "-"}<small>cm</small></b></div>
         <div class="kpi"><span>最大樹高</span><b>${hmax}<small>m</small></b></div>
       </div>
-      <div class="sec-title">樹種 上位15 <span class="muted small">タップで絞り込み</span></div>${bars(sp, D.sp, "sp", 15)}
+      <div class="sec-title">樹種 上位15 <span class="muted small">タップで絞り込み</span></div>${stdBars(sp, 15)}
+      <div class="sec-title">科 上位10</div>${famBars(sp, 10)}
       ${ward.size > 1 ? `<div class="sec-title">行政区別</div>${bars(ward, D.ward, "ward", 23)}` : ""}`;
   }
 
@@ -947,6 +1406,7 @@ window.NoteStore = (function () {
     $("#pane-detail").innerHTML = `
       <div class="hero"><span class="avatar" style="background:${treeColor(i)}">${esc(sp[0])}</span>
         <div><div class="hero-title">${esc(sp)}</div><div class="hero-sub">${esc(D.cat[C.cat[i]])}・${esc(D.ward[C.ward[i]])}・${esc(roadName(i))}${userLoc ? `・現在地から${fmtDist(distM(userLoc[0], userLoc[1], lon, lat))}` : ""}</div></div></div>
+      ${spTags(C.sp[i], true)}
       <div class="tiles">${tile("樹高", C.h[i], "m")}${tile("幹周", C.g[i], "cm")}${tile("枝張", C.w[i], "m")}</div>
       ${actionsRow(note, lat, lon, true)}
       ${rs.length ? `<div class="sec-title">みんなの報告 <span class="tag red">${rs.length}件</span></div>${rs.map(reportCard).join("")}` : ""}
@@ -1046,7 +1506,8 @@ window.NoteStore = (function () {
       if (view != null) { lightbox(photos[+view]); return; }
       const btn = e.target.closest("[data-act]"); if (!btn) return;
       const act = btn.dataset.act;
-      if (act === "samesp" && typeof selected === "number") { F.sp = new Set([C.sp[selected]]); applyFilters(); toast(`「${D.sp[C.sp[selected]]}」だけを表示しています`); }
+      if (act === "samesp" && typeof selected === "number") { const nm = SPI[C.sp[selected]].std; F.sp = new Set(); addStd(nm); applyFilters(); toast(`「${nm}」だけを表示しています`); }
+      if (act === "spinfo") { openSpeciesDetail(btn.dataset.std, "detail"); return; }
       if (act === "memo") $("#noteBox").scrollIntoView({ behavior: "smooth" });
       if (act === "share") share(note);
       if (act === "fav") {
@@ -1203,7 +1664,8 @@ window.NoteStore = (function () {
     $("#catSeg").insertAdjacentHTML("beforeend", D.cat.map((c, k) => `<button data-v="${k}">${esc(c)}</button>`).join(""));
     C.sp.forEach((v) => spCount.set(v, (spCount.get(v) || 0) + 1));
     topSpecies = [...spCount.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);
-    $("#spList").innerHTML = topSpecies.map((k) => `<option value="${esc(D.sp[k])}">${fmt(spCount.get(k))}本</option>`).join("");
+    buildSpecies();
+    $("#spList").innerHTML = [...STD.values()].sort((a, b) => b.total - a.total).map((v) => `<option value="${esc(v.name)}">${esc(v.fam)}・${fmt(v.total)}本</option>`).join("");
     $("#sourceText").textContent = CFG.sourceText + "。";
     const r = repo();
     if (r) $("#issuesLink").href = `https://github.com/${r}/issues?q=label%3A${encodeURIComponent(CFG.issueLabel)}`; else $("#issuesLink").hidden = true;
@@ -1219,9 +1681,9 @@ window.NoteStore = (function () {
     // チップ
     $("#chiprow").onclick = (e) => {
       const b = e.target.closest(".qchip"); if (!b) return;
-      if (b.dataset.sp != null) { F.sp.add(+b.dataset.sp); applyFilters(); fitResults(true); return; }
+      if (b.dataset.std != null) { addStd(b.dataset.std); applyFilters(); fitResults(true); return; }
       const k = b.dataset.off;
-      if (k === "sp") F.sp.delete(+b.dataset.val);
+      if (k === "std") removeStd(b.dataset.val);
       else if (k === "h") { F.hMin = F.hMax = null; } else if (k === "g") { F.gMin = F.gMax = null; }
       else if (k === "onlyNoted") F.onlyNoted = false; else F[k] = "";
       applyFilters(); if (pane === "filter") syncFilterForm();
@@ -1229,10 +1691,10 @@ window.NoteStore = (function () {
 
     // 絞り込みフォーム
     $("#spInput").addEventListener("change", (e) => {
-      const k = D.sp.indexOf(toKata(e.target.value.trim()));
-      if (k >= 0) { F.sp.add(k); e.target.value = ""; syncFilterForm(); applyFilters(); } else if (e.target.value.trim()) toast("該当する樹種がありません");
+      const v = toKata(e.target.value.trim()), k = D.sp.indexOf(v), name = STD.has(v) ? v : k >= 0 ? SPI[k].std : null;
+      if (name) { addStd(name); e.target.value = ""; syncFilterForm(); applyFilters(); } else if (e.target.value.trim()) toast("該当する樹種がありません");
     });
-    $("#spChips").onclick = (e) => { const k = e.target.dataset.rm; if (k != null) { F.sp.delete(+k); syncFilterForm(); applyFilters(); } };
+    $("#spChips").onclick = (e) => { const k = e.target.dataset.rm; if (k != null) { removeStd(k); syncFilterForm(); applyFilters(); } };
     $("#catSeg").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; F.cat = b.dataset.v; syncFilterForm(); applyFilters(); };
     for (const k of ["ward", "type", "route"]) $("#" + k).onchange = (e) => { F[k] = e.target.value; applyFilters(); };
     const numChange = debounce(() => { F.hMin = readNum("#hMin"); F.hMax = readNum("#hMax"); F.gMin = readNum("#gMin"); F.gMax = readNum("#gMax"); applyFilters(); }, 300);
@@ -1265,7 +1727,8 @@ window.NoteStore = (function () {
     $("#statsScope").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; $$("#statsScope button").forEach((x) => x.classList.toggle("on", x === b)); renderStats(); };
     $("#statsBody").onclick = (e) => {
       const b = e.target.closest(".bar"); if (!b) return;
-      if (b.dataset.sp != null) F.sp = new Set([+b.dataset.sp]);
+      if (b.dataset.std != null) { F.sp = new Set(); addStd(b.dataset.std); }
+      if (b.dataset.fam != null) { F.sp = new Set(); SPI.forEach((v, k) => { if (v.fam === b.dataset.fam) F.sp.add(k); }); }
       if (b.dataset.ward != null) F.ward = b.dataset.ward;
       applyFilters(); toast(`${fmt(matchCount)} 本に絞り込みました`);
     };
@@ -1284,7 +1747,8 @@ window.NoteStore = (function () {
     document.addEventListener("click", (e) => { if (!e.target.closest("#layerPop, #layerBtn")) $("#layerPop").hidden = true; });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (addMode) stopAdd(); else closeSheet(); } });
 
-    map.on("moveend", debounce(() => { if (pane === "list") renderList(); if (pane === "stats" && $("#statsScope .on").dataset.v === "view") renderStats(); }, 200));
+    initSpeciesUI();
+    map.on("moveend", debounce(() => { if (pane === "species" && spScope === "view") renderSpecies(); if (pane === "list") renderList(); if (pane === "stats" && $("#statsScope .on").dataset.v === "view") renderStats(); }, 200));
     initLocate();
   }
 
@@ -1305,6 +1769,174 @@ window.NoteStore = (function () {
       <span class="item-txt"><span class="item-main">${esc(r.type || "報告")}</span><span class="item-sub">${r.tree_id != null ? esc(D.sp[C.sp[r.tree_id]]) + "・" : ""}${esc(r.date || (r.created || "").slice(0, 10))}　${esc((r.details || "").slice(0, 40))}</span></span>
       <span class="item-end">${r.state === "open" ? '<span class="tag red">受付中</span>' : '<span class="tag gray">終了</span>'}</span></button></li>`).join("")
       : `<li class="empty">${ic("chat")}まだ報告はありません。</li>`;
+  }
+
+  // ---------- 樹種の分類 ----------
+  const LEAF = { "常": "常緑樹", "落": "落葉樹", "半": "半常緑樹", "-": "常緑・落葉不明" };
+  const LEAF_S = { "常": "常緑", "落": "落葉", "半": "半常緑", "-": "" };
+  const FORM = { "広": "広葉樹", "針": "針葉樹", "イ": "イチョウ類", "ヤ": "ヤシ類", "竹": "タケ類", "他": "その他" };
+  const LEAF_COLOR = { "常": "#2e7d32", "落": "#c9821b", "半": "#7c9a2d", "-": "#9e9e9e" };
+  const KANA_ROWS = [["ア行", "アイウエオヴァィゥェォ"], ["カ行", "カキクケコガギグゲゴ"], ["サ行", "サシスセソザジズゼゾ"], ["タ行", "タチツテトダヂヅデドッ"], ["ナ行", "ナニヌネノ"],
+    ["ハ行", "ハヒフヘホバビブベボパピプペポ"], ["マ行", "マミムメモ"], ["ヤ行", "ヤユヨャュョ"], ["ラ行", "ラリルレロ"], ["ワ行", "ワヲン"]];
+  let SPI = [];               // データ上の樹種（辞書番号）→ 分類情報
+  const STD = new Map();      // 標準名 → { name, idx[], fam, leaf, form, note, total, hi, ... }
+  let spGroupBy = "fam", spScope = "all", spBackTree = null;
+
+  const typeLabel = (v) => (v.form === "広" || v.form === "針") ? LEAF_S[v.leaf] + FORM[v.form] : FORM[v.form] + (v.form === "イ" ? "（落葉）" : "");
+  function kanaRow(name) {
+    const c = toKata(name.startsWith("常緑") ? "ジ" : name)[0];
+    const r = KANA_ROWS.find(([, s]) => s.includes(c));
+    return r ? r[0] : "その他";
+  }
+
+  function buildSpecies() {
+    const master = new Map();
+    ($("#speciesMaster")?.textContent || "").split(/\r?\n/).forEach((line) => {
+      const c = line.split(",");
+      if (c.length >= 5 && c[0].trim()) master.set(c[0].trim(), { std: (c[1] || "").trim() || c[0].trim(), fam: c[2].trim() || "未分類", leaf: c[3].trim() || "-", form: c[4].trim() || "広", note: (c[5] || "").trim() });
+    });
+    SPI = D.sp.map((name) => master.get(name) || (name.includes("/")
+      ? { std: "混植（複数樹種）", fam: "混植", leaf: "-", form: "他", note: "複数の樹種がまとめて登録されているデータ" }
+      : { std: name, fam: "未分類", leaf: "-", form: "広", note: "分類表に未登録の樹種" }));
+    STD.clear();
+    SPI.forEach((v, k) => {
+      if (!STD.has(v.std)) STD.set(v.std, { name: v.std, idx: [], aliases: [], fam: v.fam, leaf: v.leaf, form: v.form, note: v.note, total: 0, hi: 0 });
+      const s = STD.get(v.std);
+      s.idx.push(k); s.aliases.push(D.sp[k]);
+      if (!s.note && v.note) s.note = v.note;
+    });
+    const hiIdx = D.cat.indexOf("高木");
+    for (let i = 0; i < N; i++) { const s = STD.get(SPI[C.sp[i]].std); s.total++; if (C.cat[i] === hiIdx) s.hi++; }
+  }
+  const selectedStd = () => [...new Set([...F.sp].map((k) => SPI[k].std))];
+  const addStd = (name) => STD.get(name)?.idx.forEach((k) => F.sp.add(k));
+  const removeStd = (name) => STD.get(name)?.idx.forEach((k) => F.sp.delete(k));
+
+  function barsHTML(entries, attr) {
+    if (!entries.length) return "";
+    const mx = entries[0][2];
+    return `<ul class="bars">${entries.map(([label, key, v]) => `<li><button class="bar"${attr ? ` data-${attr}="${esc(key)}"` : ""}><span class="bar-lbl">${esc(label)}</span><span class="bar-track"><span style="width:${(v / mx * 100).toFixed(1)}%"></span></span><span class="bar-val">${fmt(v)}</span></button></li>`).join("")}</ul>`;
+  }
+  function aggregate(rawMap, keyFn) {
+    const m = new Map();
+    rawMap.forEach((n, k) => { const key = keyFn(k); m.set(key, (m.get(key) || 0) + n); });
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  }
+  const stdBars = (rawMap, lim) => barsHTML(aggregate(rawMap, (k) => SPI[k].std).slice(0, lim).map(([k, v]) => [k, k, v]), "std");
+  const famBars = (rawMap, lim) => barsHTML(aggregate(rawMap, (k) => SPI[k].fam).slice(0, lim).map(([k, v]) => [k, k, v]), "fam");
+
+  function spTags(k, link) {
+    const v = SPI[k];
+    return `<div class="taglist"><span class="tag">${esc(v.fam)}</span><span class="tag gray">${esc(typeLabel(v))}</span>${link ? `<button class="tag" data-act="spinfo" data-std="${esc(v.std)}">この樹種について ›</button>` : ""}</div>`;
+  }
+
+  function speciesCounts() {
+    const m = new Map();
+    if (spScope === "all") { STD.forEach((v) => m.set(v.name, v.total)); return m; }
+    const b = map.getBounds();
+    for (let i = 0; i < N; i++) if (inView(i, b)) { const n = SPI[C.sp[i]].std; m.set(n, (m.get(n) || 0) + 1); }
+    return m;
+  }
+
+  function renderSpecies() {
+    if (!C) return;
+    const q = toKata($("#spSearch").value.trim());
+    const cnt = speciesCounts();
+    let items = [...STD.values()].map((v) => ({ v, n: cnt.get(v.name) || 0 })).filter((x) => x.n > 0);
+    if (q) items = items.filter(({ v }) => toKata(v.name).includes(q) || v.fam.includes(q) || v.aliases.some((a) => toKata(a).includes(q)));
+    items.sort((a, b) => b.n - a.n || a.v.name.localeCompare(b.v.name, "ja"));
+    const total = items.reduce((s, x) => s + x.n, 0);
+    const fams = new Set(items.map((x) => x.v.fam).filter((f) => f !== "未分類" && f !== "混植"));
+    $("#spMeta").textContent = items.length ? `${items.length} 樹種・${fams.size} 科・${fmt(total)} 本` : "";
+    if (!items.length) { $("#spBody").innerHTML = `<p class="empty">${ic("leaf")}${q ? "該当する樹種がありません。" : "表示範囲に樹木がありません。"}</p>`; return; }
+
+    const row = ({ v, n }) => {
+      const sub = [spGroupBy !== "fam" ? v.fam : "", typeLabel(v), v.total ? `高木${Math.round(v.hi / v.total * 100)}%` : ""].filter(Boolean).join("・");
+      const alias = v.aliases.length > 1 || v.aliases[0] !== v.name ? `（表記：${v.aliases.join("・")}）` : "";
+      return `<li><button class="item" data-std="${esc(v.name)}"><span class="avatar" style="background:${LEAF_COLOR[v.leaf]}">${esc(v.name[0])}</span>
+        <span class="item-txt"><span class="item-main">${esc(v.name)}</span><span class="item-sub">${esc(sub)}${esc(alias)}</span></span>
+        <span class="item-end"><span class="sp-cnt">${fmt(n)}</span><span class="sp-share">${(n / total * 100).toFixed(1)}%</span></span></button></li>`;
+    };
+    if (spGroupBy === "count") { $("#spBody").innerHTML = `<ol class="list">${items.map(row).join("")}</ol>`; return; }
+
+    const keyOf = {
+      fam: (v) => v.fam, leaf: (v) => LEAF[v.leaf], form: (v) => FORM[v.form],
+      cat: (v) => (v.total && v.hi / v.total >= .5 ? "主に高木" : "主に中木"), kana: (v) => kanaRow(v.name),
+    }[spGroupBy];
+    const order = {
+      leaf: Object.values(LEAF), form: ["広葉樹", "針葉樹", "イチョウ類", "ヤシ類", "タケ類", "その他"], cat: ["主に高木", "主に中木"],
+      kana: [...KANA_ROWS.map((r) => r[0]), "その他"],
+    }[spGroupBy];
+    const groups = new Map();
+    items.forEach((x) => { const k = keyOf(x.v); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(x); });
+    let gs = [...groups.entries()].map(([k, arr]) => ({ k, arr, n: arr.reduce((s, x) => s + x.n, 0) }));
+    if (order) gs.sort((a, b) => order.indexOf(a.k) - order.indexOf(b.k));
+    else gs.sort((a, b) => (a.k === "未分類" || a.k === "混植") - (b.k === "未分類" || b.k === "混植") || b.n - a.n);
+    if (spGroupBy === "kana") gs.forEach((g) => g.arr.sort((a, b) => toKata(a.v.name).localeCompare(toKata(b.v.name), "ja")));
+    const maxN = Math.max(...gs.map((g) => g.n));
+    const openAll = !!q || gs.length <= 6;
+    $("#spBody").innerHTML = gs.map((g, gi) => `<details class="grp"${openAll || gi < 3 ? " open" : ""}>
+      <summary><span class="grp-name">${esc(g.k)}</span><span class="grp-meta">${g.arr.length} 種・${fmt(g.n)} 本（${(g.n / total * 100).toFixed(1)}%）</span>
+      <span class="grp-bar"><span style="width:${(g.n / maxN * 100).toFixed(0)}%"></span></span></summary>
+      <ol class="list">${g.arr.map(row).join("")}</ol></details>`).join("");
+  }
+
+  function openSpeciesDetail(name, from) {
+    const v = STD.get(name); if (!v) return;
+    spBackTree = from === "detail" && typeof selected === "number" ? selected : null;
+    const set = new Set(v.idx), hiIdx = D.cat.indexOf("高木");
+    const wards = new Map(), roads = new Map(), alias = new Map();
+    let n = 0, hi = 0, hs = 0, hmax = 0, gs = 0, gn = 0, gmax = 0;
+    for (let i = 0; i < N; i++) {
+      if (!set.has(C.sp[i])) continue;
+      n++; if (C.cat[i] === hiIdx) hi++;
+      const h = C.h[i] ?? 0; hs += h; if (h > hmax) hmax = h;
+      if (C.g[i] != null) { gs += C.g[i]; gn++; if (C.g[i] > gmax) gmax = C.g[i]; }
+      wards.set(C.ward[i], (wards.get(C.ward[i]) || 0) + 1);
+      const r = roadName(i); roads.set(r, (roads.get(r) || 0) + 1);
+      alias.set(C.sp[i], (alias.get(C.sp[i]) || 0) + 1);
+    }
+    const sameFam = [...STD.values()].filter((x) => x.fam === v.fam && x.name !== v.name && x.fam !== "未分類" && x.fam !== "混植").sort((a, b) => b.total - a.total);
+    const rank = [...STD.values()].sort((a, b) => b.total - a.total).findIndex((x) => x.name === v.name) + 1;
+    openSheet("spdetail", "樹種の情報");
+    $$(".bottomnav button").forEach((b) => b.classList.toggle("active", b.dataset.pane === "species"));
+    $("#pane-spdetail").innerHTML = `
+      <button class="backbtn" data-act="back">${ic("back")}${spBackTree != null ? "樹木の情報に戻る" : "樹種一覧に戻る"}</button>
+      <div class="hero"><span class="avatar" style="background:${LEAF_COLOR[v.leaf]}">${esc(v.name[0])}</span>
+        <div><div class="hero-title">${esc(v.name)}</div><div class="hero-sub">${esc(v.fam)}・${esc(typeLabel(v))}・本数 ${rank}位 / ${STD.size}種</div></div></div>
+      ${v.note ? `<div class="note-line">${esc(v.note)}</div>` : ""}
+      <div class="tiles">${tile("本数", fmt(n), "本")}${tile("平均樹高", n ? (hs / n).toFixed(1) : null, "m")}${tile("平均幹周", gn ? Math.round(gs / gn) : null, "cm")}</div>
+      <div class="small muted">高木 ${fmt(hi)} 本・中木 ${fmt(n - hi)} 本　／　最大樹高 ${hmax}m${gn ? `・最大幹周 ${gmax}cm` : ""}</div>
+      <div class="split"><span style="width:${n ? hi / n * 100 : 0}%;background:${CAT_COLORS["高木"]}"></span><span style="width:${n ? (n - hi) / n * 100 : 0}%;background:${CAT_COLORS["中木"]}"></span></div>
+      <div class="btnrow"><button class="btn" data-act="only">${ic("pin")}地図に表示</button><button class="btn sub" data-act="add">${ic("plus")}条件に追加</button></div>
+      <div class="sec-title">多い区</div>${barsHTML([...wards.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, c]) => [D.ward[k], k, c]), "ward")}
+      <div class="sec-title">多い通り</div>${barsHTML([...roads.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, c]) => [k, "", c]), "")}
+      ${alias.size > 1 || v.aliases[0] !== v.name ? `<div class="sec-title">データ上の表記</div><p class="small" style="margin:0">${[...alias.entries()].map(([k, c]) => `${esc(D.sp[k])}（${fmt(c)}本）`).join("、")}</p>` : ""}
+      ${sameFam.length ? `<div class="sec-title">同じ${esc(v.fam)}の樹種</div><div class="taglist">${sameFam.map((x) => `<button class="tag" data-act="sp" data-std="${esc(x.name)}">${esc(x.name)} ${fmt(x.total)}</button>`).join("")}</div>` : ""}`;
+  }
+
+  function exportSpecies() {
+    const head = ["標準名", "科", "常緑・落葉", "針葉・広葉など", "本数", "高木", "中木", "データ上の表記", "注記"];
+    const rows = [...STD.values()].sort((a, b) => b.total - a.total).map((v) => [v.name, v.fam, LEAF[v.leaf], FORM[v.form], v.total, v.hi, v.total - v.hi, v.aliases.join("・"), v.note]);
+    download(`street-tree-species-${stamp()}.csv`, "﻿" + [head, ...rows].map((r) => r.map(csvCell).join(",")).join("\r\n"), "text/csv");
+  }
+
+  function initSpeciesUI() {
+    $("#spSearch").addEventListener("input", debounce(renderSpecies, 200));
+    $("#spGroup").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; spGroupBy = b.dataset.g; $$("#spGroup button").forEach((x) => x.classList.toggle("on", x === b)); renderSpecies(); };
+    $("#spScope").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; spScope = b.dataset.v; $$("#spScope button").forEach((x) => x.classList.toggle("on", x === b)); renderSpecies(); };
+    $("#spCsv").onclick = exportSpecies;
+    $("#spBody").onclick = (e) => { const b = e.target.closest("[data-std]"); if (b) openSpeciesDetail(b.dataset.std, "species"); };
+    $("#pane-spdetail").onclick = (e) => {
+      const b = e.target.closest("[data-act], [data-ward]"); if (!b) return;
+      const name = $("#pane-spdetail .hero-title").textContent;
+      if (b.dataset.ward != null && b.dataset.ward !== "") { F.sp = new Set(); addStd(name); F.ward = b.dataset.ward; applyFilters(); closeSheet(); fitResults(true); return; }
+      const act = b.dataset.act;
+      if (act === "back") { if (spBackTree != null) selectTree(spBackTree); else openSheet("species"); }
+      if (act === "sp") openSpeciesDetail(b.dataset.std, "species");
+      if (act === "only") { F.sp = new Set(); addStd(name); applyFilters(); closeSheet(); fitResults(true); }
+      if (act === "add") { addStd(name); applyFilters(); toast(`「${name}」を条件に追加しました`); }
+    };
   }
 
   // ---------- 起動 ----------
