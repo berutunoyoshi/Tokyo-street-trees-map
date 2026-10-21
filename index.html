@@ -455,7 +455,7 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
       <div class="seg" id="spScope" style="margin-bottom:10px"><button data-v="all" class="on">23区全体</button><button data-v="view">地図の表示範囲</button></div>
       <div class="listhead"><span id="spMeta"></span><button id="spCsv" class="btn line" style="min-height:32px;padding:0 10px;font-size:12px">CSV</button></div>
       <div id="spBody"></div>
-      <p class="muted small">科はAPG分類体系によります。表記ゆれ（例：ザクラ・さくら → サクラ）はまとめて表示しています。</p>
+      <p class="muted small">科別はAPG分類体系の配列順（裸子植物→被子植物）、科内は五十音順です。表記ゆれ（例：ザクラ・さくら → サクラ）はまとめて表示しています。</p>
     </div>
     <div class="pane" id="pane-spdetail"></div>
 
@@ -1778,6 +1778,8 @@ window.NoteStore = (function () {
   const LEAF_COLOR = { "常": "#2e7d32", "落": "#c9821b", "半": "#7c9a2d", "-": "#9e9e9e" };
   const KANA_ROWS = [["ア行", "アイウエオヴァィゥェォ"], ["カ行", "カキクケコガギグゲゴ"], ["サ行", "サシスセソザジズゼゾ"], ["タ行", "タチツテトダヂヅデドッ"], ["ナ行", "ナニヌネノ"],
     ["ハ行", "ハヒフヘホバビブベボパピプペポ"], ["マ行", "マミムメモ"], ["ヤ行", "ヤユヨャュョ"], ["ラ行", "ラリルレロ"], ["ワ行", "ワヲン"]];
+  // 科の並び順（APG IV の配列順。裸子植物 → 被子植物）。分類表に科を追加したらここにも追記
+  const FAM_ORDER = "イチョウ科,マツ科,ナンヨウスギ科,マキ科,コウヤマキ科,ヒノキ科,イチイ科,マツブサ科,モクレン科,ロウバイ科,クスノキ科,キジカクシ科,ヤシ科,イネ科,メギ科,スズカケノキ科,ツゲ科,フウ科,マンサク科,カツラ科,ユズリハ科,マメ科,バラ科,グミ科,ニレ科,アサ科,クワ科,ブナ科,ヤマモモ科,クルミ科,カバノキ科,ニシキギ科,ホルトノキ科,トウダイグサ科,ヤナギ科,オトギリソウ科,ミソハギ科,フトモモ科,ミツバウツギ科,ウルシ科,ムクロジ科,ミカン科,ニガキ科,センダン科,アオイ科,ジンチョウゲ科,ミズキ科,ヌマミズキ科,アジサイ科,モッコク科,カキノキ科,ツバキ科,ハイノキ科,エゴノキ科,リョウブ科,ツツジ科,アオキ科,アカネ科,キョウチクトウ科,ナス科,モクセイ科,ノウゼンカズラ科,クマツヅラ科,シソ科,キリ科,モチノキ科,ガマズミ科,スイカズラ科,トベラ科,ウコギ科".split(",");
   let SPI = [];               // データ上の樹種（辞書番号）→ 分類情報
   const STD = new Map();      // 標準名 → { name, idx[], fam, leaf, form, note, total, hi, ... }
   let spGroupBy = "fam", spScope = "all", spBackTree = null;
@@ -1851,7 +1853,7 @@ window.NoteStore = (function () {
     if (!items.length) { $("#spBody").innerHTML = `<p class="empty">${ic("leaf")}${q ? "該当する樹種がありません。" : "表示範囲に樹木がありません。"}</p>`; return; }
 
     const row = ({ v, n }) => {
-      const sub = [spGroupBy !== "fam" ? v.fam : "", typeLabel(v), v.total ? `高木${Math.round(v.hi / v.total * 100)}%` : ""].filter(Boolean).join("・");
+      const sub = [spGroupBy !== "fam" ? v.fam : "", typeLabel(v)].filter(Boolean).join("・");
       const alias = v.aliases.length > 1 || v.aliases[0] !== v.name ? `（表記：${v.aliases.join("・")}）` : "";
       return `<li><button class="item" data-std="${esc(v.name)}"><span class="avatar" style="background:${LEAF_COLOR[v.leaf]}">${esc(v.name[0])}</span>
         <span class="item-txt"><span class="item-main">${esc(v.name)}</span><span class="item-sub">${esc(sub)}${esc(alias)}</span></span>
@@ -1870,9 +1872,9 @@ window.NoteStore = (function () {
     const groups = new Map();
     items.forEach((x) => { const k = keyOf(x.v); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(x); });
     let gs = [...groups.entries()].map(([k, arr]) => ({ k, arr, n: arr.reduce((s, x) => s + x.n, 0) }));
-    if (order) gs.sort((a, b) => order.indexOf(a.k) - order.indexOf(b.k));
-    else gs.sort((a, b) => (a.k === "未分類" || a.k === "混植") - (b.k === "未分類" || b.k === "混植") || b.n - a.n);
-    if (spGroupBy === "kana") gs.forEach((g) => g.arr.sort((a, b) => toKata(a.v.name).localeCompare(toKata(b.v.name), "ja")));
+    const pos = (list, k) => { const i = list.indexOf(k); return i < 0 ? 999 + (k === "混植" ? 1 : 0) : i; };
+    gs.sort((a, b) => pos(order || FAM_ORDER, a.k) - pos(order || FAM_ORDER, b.k));
+    if (spGroupBy === "kana" || spGroupBy === "fam") gs.forEach((g) => g.arr.sort((a, b) => toKata(a.v.name).localeCompare(toKata(b.v.name), "ja")));
     const maxN = Math.max(...gs.map((g) => g.n));
     const openAll = !!q || gs.length <= 6;
     $("#spBody").innerHTML = gs.map((g, gi) => `<details class="grp"${openAll || gi < 3 ? " open" : ""}>
