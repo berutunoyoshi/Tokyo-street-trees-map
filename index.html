@@ -1,0 +1,1341 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>東京23区 街路樹マップ</title>
+<meta name="description" content="東京都23区（都道）の街路樹オープンデータ約14万本を地図で検索・閲覧し、メモや状態報告を追加できるWebアプリ">
+<meta name="theme-color" content="#1f5c3a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231f5c3a'/%3E%3Ccircle cx='32' cy='27' r='15' fill='%238fd19e'/%3E%3Crect x='29.5' y='36' width='5' height='17' rx='2' fill='%23f3efe4'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css'">
+<style>
+/* ===== デザイントークン ===== */
+:root {
+  --green-900: #143d27; --green-800: #1f5c3a; --green-600: #2f8052; --green-400: #5fb37c; --green-100: #e3f2e7; --green-50: #f2f8f3;
+  --bg: #ffffff; --surface: #ffffff; --surface-2: #f3f5f2; --fg: #17241b; --muted: #66756a; --line: #e2e8e2;
+  --accent: var(--green-800); --accent-fg: #ffffff; --danger: #c43d3d; --star: #f2b705;
+  --shadow-1: 0 1px 2px rgba(16,40,24,.10), 0 2px 8px rgba(16,40,24,.10);
+  --shadow-2: 0 6px 24px rgba(16,40,24,.18), 0 1px 3px rgba(16,40,24,.12);
+  --r-lg: 18px; --r-md: 12px; --r-sm: 8px;
+  --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px);
+  --nav-h: 62px;
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101712; --surface: #172019; --surface-2: #212c24; --fg: #e8efe9; --muted: #9fb0a4; --line: #2c3a30;
+    --accent: #6cc28a; --accent-fg: #0d1f14; --green-100: #22382a; --green-50: #1a271e;
+    --shadow-1: 0 1px 2px rgba(0,0,0,.4), 0 2px 8px rgba(0,0,0,.35); --shadow-2: 0 6px 24px rgba(0,0,0,.5);
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--fg); overscroll-behavior: none; }
+body { font-size: 14px; line-height: 1.5; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: var(--accent); }
+[hidden] { display: none !important; }
+svg.ic { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+#map { position: fixed; inset: 0; }
+
+/* ===== 上部：検索バー ===== */
+.topbar { position: fixed; z-index: 10; top: calc(var(--safe-t) + 10px); left: 10px; right: 10px; pointer-events: none; }
+.searchbar {
+  pointer-events: auto; display: flex; align-items: center; gap: 4px; height: 50px; padding: 0 6px 0 12px;
+  background: var(--surface); border-radius: 25px; box-shadow: var(--shadow-2);
+}
+.logo { width: 30px; height: 30px; flex: none; }
+.searchbar input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 16px; padding: 0 6px; }
+.searchbar input::placeholder { color: var(--muted); }
+.icon-btn { display: inline-grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 50%; background: transparent; color: var(--fg); position: relative; }
+.icon-btn:active { background: var(--surface-2); }
+.icon-btn .dot { position: absolute; top: 5px; right: 4px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--danger); color: #fff; font-size: 11px; font-weight: 700; line-height: 17px; }
+.chiprow { pointer-events: auto; display: flex; gap: 6px; overflow-x: auto; padding: 10px 2px 6px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.chiprow::-webkit-scrollbar { display: none; }
+.qchip {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border: 0; border-radius: 17px;
+  background: var(--surface); color: var(--fg); box-shadow: var(--shadow-1); font-size: 13px; font-weight: 600; white-space: nowrap;
+}
+.qchip i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.qchip.on { background: var(--accent); color: var(--accent-fg); }
+.qchip.on .x { margin-right: -4px; opacity: .85; }
+.countpill {
+  position: fixed; z-index: 9; left: 12px; top: calc(var(--safe-t) + 112px);
+  background: rgba(23,36,27,.86); color: #fff; padding: 6px 14px; border-radius: 16px; font-size: 12.5px; font-weight: 600; white-space: nowrap;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); pointer-events: none; transition: opacity .2s;
+}
+
+/* ===== 右側：フローティングボタン ===== */
+.fabs { position: fixed; z-index: 9; right: 12px; bottom: calc(var(--nav-h) + var(--safe-b) + 14px); display: flex; flex-direction: column; gap: 10px; transition: bottom .25s, opacity .2s; }
+.fab { width: 50px; height: 50px; border-radius: 50%; border: 0; background: var(--surface); color: var(--fg); box-shadow: var(--shadow-2); display: grid; place-items: center; }
+.fab.loc { color: var(--accent); }
+.fab.loc.active { background: var(--accent); color: var(--accent-fg); }
+.fab.loc.busy svg { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .3; } }
+
+/* 凡例 */
+.legend {
+  position: fixed; z-index: 8; left: 12px; bottom: calc(var(--nav-h) + var(--safe-b) + 14px); max-width: calc(100% - 90px);
+  background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-1); padding: 6px 10px; font-size: 11.5px;
+  display: flex; flex-wrap: wrap; gap: 2px 10px; transition: bottom .25s, opacity .2s;
+}
+.lg { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.lg i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.lg i.ring { border: 2px solid #d32f2f; }
+.lg i.mine { background: #fff; border: 2.5px solid #263238; }
+.grad { display: block; width: 150px; height: 8px; border-radius: 4px; margin-top: 2px; }
+.gradlbl { display: flex; justify-content: space-between; width: 150px; color: var(--muted); }
+
+/* ===== 下部ナビ ===== */
+.bottomnav {
+  position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; height: calc(var(--nav-h) + var(--safe-b)); padding-bottom: var(--safe-b);
+  background: var(--surface); box-shadow: 0 -1px 0 var(--line), 0 -4px 16px rgba(16,40,24,.06); display: flex;
+}
+.bottomnav button {
+  flex: 1; border: 0; background: none; color: var(--muted); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  font-size: 10.5px; font-weight: 600; position: relative;
+}
+.bottomnav button.active { color: var(--accent); }
+.bottomnav button.active::before { content: ""; position: absolute; top: 0; left: 30%; right: 30%; height: 3px; border-radius: 0 0 3px 3px; background: var(--accent); }
+.bottomnav .cnt { position: absolute; top: 6px; left: calc(50% + 6px); background: var(--accent); color: var(--accent-fg); border-radius: 8px; font-size: 10px; padding: 0 5px; line-height: 15px; }
+
+/* ===== ボトムシート ===== */
+.sheet {
+  position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; height: 52vh; max-height: calc(100% - var(--safe-t) - 70px);
+  background: var(--surface); border-radius: var(--r-lg) var(--r-lg) 0 0; box-shadow: var(--shadow-2);
+  display: flex; flex-direction: column; transition: height .28s cubic-bezier(.2,.8,.2,1), transform .28s cubic-bezier(.2,.8,.2,1);
+  transform: translateY(0);
+}
+.sheet.full { height: calc(100% - var(--safe-t) - 70px); }
+.sheet.dragging { transition: none; }
+.sheet.closing { transform: translateY(105%); }
+.grab { padding: 8px 0 2px; display: grid; place-items: center; touch-action: none; cursor: grab; }
+.grab span { width: 40px; height: 5px; border-radius: 3px; background: var(--line); }
+.sheet-head { display: flex; align-items: center; gap: 8px; padding: 2px 10px 8px 18px; touch-action: none; }
+.sheet-head h2 { flex: 1; margin: 0; font-size: 18px; font-weight: 800; letter-spacing: .02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sheet-head .icon-btn { background: var(--surface-2); width: 34px; height: 34px; }
+.sheet-body { flex: 1; overflow-y: auto; padding: 0 18px calc(24px + var(--safe-b)); -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.pane { display: none; }
+.pane.on { display: block; }
+
+/* ===== フォーム要素 ===== */
+.field { display: block; margin: 0 0 14px; }
+.field > .lbl { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 6px; letter-spacing: .03em; }
+.inp, select.inp, textarea.inp {
+  width: 100%; border: 1px solid var(--line); background: var(--surface-2); border-radius: var(--r-md); padding: 11px 12px; font-size: 16px; outline: none;
+  -webkit-appearance: none; appearance: none;
+}
+select.inp { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2366756a' stroke-width='2'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+.inp:focus { border-color: var(--accent); }
+textarea.inp { resize: vertical; min-height: 88px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.range { display: flex; align-items: center; gap: 8px; }
+.range .inp { text-align: center; }
+.seg { display: flex; background: var(--surface-2); border-radius: var(--r-md); padding: 3px; }
+.seg button { flex: 1; border: 0; background: none; padding: 8px 4px; border-radius: 9px; font-weight: 700; color: var(--muted); font-size: 13px; }
+.seg button.on { background: var(--surface); color: var(--fg); box-shadow: var(--shadow-1); }
+.toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); font-weight: 600; }
+.switch { position: relative; width: 46px; height: 28px; flex: none; }
+.switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.switch span { position: absolute; inset: 0; border-radius: 14px; background: var(--line); transition: .2s; }
+.switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: var(--shadow-1); transition: .2s; }
+.switch input:checked + span { background: var(--accent); }
+.switch input:checked + span::after { transform: translateX(18px); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 2px; background: var(--green-100); color: var(--accent); border-radius: 16px; padding: 4px 6px 4px 12px; font-size: 13px; font-weight: 700; }
+.chip button { border: 0; background: none; color: inherit; padding: 0 4px; font-size: 16px; line-height: 1; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 16px; border-radius: var(--r-md);
+  border: 0; background: var(--accent); color: var(--accent-fg); font-weight: 700; font-size: 14px; text-decoration: none;
+}
+.btn.sub { background: var(--surface-2); color: var(--fg); }
+.btn.line { background: transparent; color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--line); }
+.btn.danger { background: transparent; color: var(--danger); }
+.btn.gh { background: #24292f; color: #fff; }
+.btn.block { width: 100%; }
+.btn svg.ic { width: 18px; height: 18px; }
+.btnrow { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+.btnrow > .btn { flex: 1; }
+.sticky-foot { position: sticky; bottom: calc(-24px - var(--safe-b)); margin: 8px -18px 0; padding: 12px 18px calc(12px + var(--safe-b)); background: var(--surface); border-top: 1px solid var(--line); display: flex; gap: 8px; }
+.sticky-foot .btn { flex: 1; }
+.sticky-foot .btn.main { flex: 2; }
+.file-btn { position: relative; overflow: hidden; }
+.file-btn input { position: absolute; inset: 0; opacity: 0; }
+.sec-title { font-size: 13px; font-weight: 800; margin: 20px 0 10px; letter-spacing: .03em; display: flex; align-items: center; gap: 8px; }
+.sec-title .muted { font-weight: 500; }
+
+/* ===== リスト ===== */
+.listhead { display: flex; justify-content: space-between; align-items: center; margin: 2px 0 6px; font-size: 12.5px; color: var(--muted); }
+.list { list-style: none; margin: 0; padding: 0; }
+.list li + li { border-top: 1px solid var(--line); }
+.item { display: flex; align-items: center; gap: 12px; width: 100%; border: 0; background: none; text-align: left; padding: 11px 2px; }
+.item:active { background: var(--green-50); }
+.avatar { width: 38px; height: 38px; border-radius: 50%; flex: none; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 15px; }
+.item-txt { flex: 1; min-width: 0; }
+.item-main { display: block; font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-sub { display: block; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-end { font-size: 12px; color: var(--muted); text-align: right; flex: none; }
+.empty { padding: 28px 8px; text-align: center; color: var(--muted); }
+.empty svg.ic { width: 36px; height: 36px; display: block; margin: 0 auto 8px; opacity: .6; }
+.tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 6px; background: var(--green-100); color: var(--accent); vertical-align: 1px; }
+.tag.red { background: #fde8e8; color: #b42318; }
+.tag.gray { background: var(--surface-2); color: var(--muted); }
+.star { color: var(--star); }
+
+/* ===== 統計 ===== */
+.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.kpi { background: var(--surface-2); border-radius: var(--r-md); padding: 10px 12px; }
+.kpi span { display: block; font-size: 11px; color: var(--muted); font-weight: 700; }
+.kpi b { font-size: 19px; font-weight: 800; letter-spacing: -.01em; }
+.kpi small { font-size: 12px; font-weight: 700; margin-left: 1px; }
+.bars { list-style: none; margin: 0; padding: 0; }
+.bar { display: grid; grid-template-columns: 7.5em 1fr 4em; gap: 8px; align-items: center; width: 100%; border: 0; background: none; padding: 5px 0; text-align: left; font-size: 13px; }
+.bar-lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { height: 10px; background: var(--surface-2); border-radius: 5px; overflow: hidden; }
+.bar-track span { display: block; height: 100%; background: var(--green-600); border-radius: 5px; }
+.bar-val { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; }
+
+/* ===== 詳細 ===== */
+.hero { display: flex; gap: 14px; align-items: center; margin: 2px 0 14px; }
+.hero .avatar { width: 52px; height: 52px; font-size: 22px; }
+.hero-title { font-size: 22px; font-weight: 800; line-height: 1.25; }
+.hero-sub { color: var(--muted); font-size: 13px; }
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+.tile { background: var(--green-50); border-radius: var(--r-md); padding: 10px; text-align: center; }
+.tile span { display: block; font-size: 11px; color: var(--muted); font-weight: 700; }
+.tile b { font-size: 20px; font-weight: 800; }
+.tile small { font-size: 12px; font-weight: 700; margin-left: 2px; }
+.actions { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 8px; }
+.act { border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; color: var(--fg); text-decoration: none; padding: 4px 0; }
+.act .circ { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--accent); }
+.act.on .circ { background: #fff4cc; color: #b88700; }
+details.attrs { background: var(--surface-2); border-radius: var(--r-md); padding: 0 14px; margin: 8px 0; }
+details.attrs summary { padding: 12px 0; font-weight: 700; list-style: none; display: flex; justify-content: space-between; }
+details.attrs summary::after { content: "＋"; color: var(--muted); }
+details.attrs[open] summary::after { content: "－"; }
+details.attrs summary::-webkit-details-marker { display: none; }
+.attrs table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-bottom: 10px; }
+.attrs th { text-align: left; color: var(--muted); font-weight: 600; width: 7.5em; padding: 7px 0; vertical-align: top; }
+.attrs td { padding: 7px 0; }
+.attrs tr + tr { border-top: 1px solid var(--line); }
+.card { background: var(--surface-2); border-radius: var(--r-md); padding: 12px 14px; margin-bottom: 8px; font-size: 13.5px; }
+.card-head { display: flex; gap: 8px; align-items: center; font-weight: 700; }
+.pre { white-space: pre-wrap; margin: 6px 0; }
+.thumbs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.thumbs img { width: 72px; height: 72px; object-fit: cover; border-radius: 10px; display: block; }
+.ph { position: relative; }
+.ph-del { position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(0,0,0,.7); color: #fff; font-size: 13px; line-height: 22px; padding: 0; }
+.addph { width: 72px; height: 72px; border-radius: 10px; border: 1.5px dashed var(--line); display: grid; place-items: center; color: var(--muted); position: relative; }
+.addph input { position: absolute; inset: 0; opacity: 0; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pills label { position: relative; }
+.pills input { position: absolute; opacity: 0; }
+.pills span { display: inline-block; padding: 7px 13px; border-radius: 16px; background: var(--surface-2); font-size: 13px; font-weight: 700; color: var(--muted); }
+.pills input:checked + span { background: var(--accent); color: var(--accent-fg); }
+.note-box { border-top: 1px solid var(--line); margin-top: 16px; }
+
+/* ===== レイヤー選択 ===== */
+.popover {
+  position: fixed; z-index: 25; right: 72px; bottom: calc(var(--nav-h) + var(--safe-b) + 14px); width: min(300px, calc(100vw - 90px));
+  background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-2); padding: 14px;
+}
+.popover h3 { font-size: 12px; margin: 0 0 8px; color: var(--muted); letter-spacing: .04em; }
+.basemaps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+.bm { border: 0; background: none; padding: 0; font-size: 11px; font-weight: 700; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.bm i { width: 54px; height: 54px; border-radius: 12px; display: block; box-shadow: inset 0 0 0 1px var(--line); }
+.bm.on { color: var(--accent); }
+.bm.on i { box-shadow: 0 0 0 2.5px var(--accent); }
+.colormodes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.cm { border: 0; background: var(--surface-2); border-radius: 10px; padding: 9px 6px; font-weight: 700; font-size: 12.5px; color: var(--muted); }
+.cm.on { background: var(--accent); color: var(--accent-fg); }
+
+/* ===== その他 ===== */
+.toast {
+  position: fixed; z-index: 50; left: 50%; top: calc(var(--safe-t) + 70px); transform: translateX(-50%); max-width: calc(100vw - 32px);
+  background: rgba(23,36,27,.92); color: #fff; padding: 10px 16px; border-radius: 14px; font-size: 13.5px; font-weight: 600; box-shadow: var(--shadow-2); text-align: center;
+}
+.addbar { position: fixed; z-index: 40; left: 12px; right: 12px; top: calc(var(--safe-t) + 10px); background: var(--accent); color: var(--accent-fg); border-radius: 16px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow-2); font-weight: 700; }
+.addbar span { flex: 1; }
+.addbar button { border: 0; background: rgba(255,255,255,.2); color: inherit; border-radius: 10px; padding: 8px 12px; font-weight: 700; }
+.adding .topbar, .adding .fabs, .adding .legend, .adding .countpill { opacity: 0; pointer-events: none; }
+.crosshair { position: fixed; z-index: 15; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px; pointer-events: none; color: var(--danger); }
+.lightbox { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.9); display: grid; place-items: center; }
+.lightbox img { max-width: 96vw; max-height: 90vh; border-radius: 6px; }
+.loading { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: var(--green-800); color: #fff; text-align: center; padding: 24px; }
+.loading .logo { width: 72px; height: 72px; }
+.loading h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: .04em; }
+.loading p { margin: 0; opacity: .8; font-size: 13px; }
+.bar-load { width: 160px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.2); overflow: hidden; }
+.bar-load span { display: block; height: 100%; width: 40%; background: #8fd19e; border-radius: 2px; animation: load 1.2s ease-in-out infinite; }
+@keyframes load { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+.prose { font-size: 14px; line-height: 1.8; }
+.prose h3 { font-size: 14px; margin: 18px 0 4px; }
+.prose ul { padding-left: 1.2em; margin: 4px 0; }
+.maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left { bottom: calc(var(--nav-h) + var(--safe-b)); }
+.maplibregl-ctrl-bottom-left { display: none; }
+.maplibregl-ctrl-bottom-right { right: 70px; }
+.maplibregl-ctrl-attrib { font-size: 10px; }
+.maplibregl-ctrl-top-right { display: none; }
+.maplibregl-ctrl-group:has(.maplibregl-ctrl-geolocate) { display: none; }
+.maplibregl-user-location-dot, .maplibregl-user-location-dot::before { background-color: #1a73e8; }
+
+/* シート表示中は地図上の部品を退避 */
+body.sheet-on .fabs, body.sheet-on .legend { bottom: calc(52vh + 12px); }
+body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body.sheet-full .chiprow { opacity: 0; pointer-events: none; }
+
+/* ===== PC（幅広画面） ===== */
+@media (min-width: 900px) {
+  :root { --nav-h: 0px; }
+  .topbar { right: auto; width: 400px; left: 16px; top: 16px; }
+  .bottomnav { left: auto; right: 16px; top: 16px; bottom: auto; height: 50px; padding: 0 4px; border-radius: 25px; box-shadow: var(--shadow-2); }
+  .bottomnav button { flex: none; width: auto; padding: 0 12px; flex-direction: row; gap: 5px; font-size: 13px; white-space: nowrap; }
+  .bottomnav button.active::before { display: none; }
+  .bottomnav button.active { background: var(--green-100); border-radius: 20px; margin: 6px 0; }
+  .bottomnav .cnt { position: static; }
+  .bottomnav svg.ic { width: 18px; height: 18px; }
+  .sheet { left: 16px; right: auto; width: 400px; top: 126px; bottom: 16px; height: auto !important; max-height: none; border-radius: var(--r-lg); }
+  .sheet.closing { transform: translateX(-110%); }
+  .grab { display: none; }
+  .sheet-head { padding-top: 14px; }
+  body.sheet-on .fabs, body.sheet-on .legend { bottom: 34px; }
+  body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body.sheet-full .chiprow { opacity: 1; pointer-events: auto; }
+  .fabs { bottom: 34px; right: 16px; }
+  .countpill { top: 118px; left: 16px; }
+  body.sheet-on .countpill { left: 432px; top: 126px; }
+  .legend { bottom: 34px; left: 16px; max-width: 400px; }
+  body.sheet-on .legend { left: 432px; bottom: 16px; }
+  .popover { bottom: 34px; right: 80px; }
+  .maplibregl-ctrl-top-right { display: block; top: 76px; }
+  .maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left { bottom: 0; }
+  .maplibregl-ctrl-bottom-right { right: 0; }
+  .maplibregl-ctrl-bottom-left { display: block; }
+  .addbar { left: 50%; right: auto; transform: translateX(-50%); width: 460px; }
+}
+</style>
+</head>
+<body>
+<div id="map" aria-label="街路樹の地図"></div>
+
+<!-- 検索バー＋クイックフィルタ -->
+<header class="topbar">
+  <div class="searchbar">
+    <svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="#1f5c3a"/><circle cx="32" cy="27" r="15" fill="#8fd19e"/><rect x="29.5" y="36" width="5" height="17" rx="2" fill="#f3efe4"/></svg>
+    <input id="q" type="search" enterkeyhint="search" placeholder="樹種・通り名・区で検索" autocomplete="off" aria-label="キーワード検索">
+    <button id="qClear" class="icon-btn" aria-label="検索語を消す" hidden><i data-ic="x"></i></button>
+    <button id="filterBtn" class="icon-btn" aria-label="絞り込み"><i data-ic="filter"></i><span id="fBadge" class="dot" hidden></span></button>
+  </div>
+  <div id="chiprow" class="chiprow" aria-label="クイック絞り込み"></div>
+</header>
+
+<div id="countPill" class="countpill">読み込み中…</div>
+<div id="legend" class="legend"></div>
+
+<div class="fabs">
+  <button id="layerBtn" class="fab" aria-label="地図の表示設定"><i data-ic="layers"></i></button>
+  <button id="locBtn" class="fab loc" aria-label="現在地を表示"><i data-ic="locate"></i></button>
+</div>
+
+<!-- 表示設定 -->
+<div id="layerPop" class="popover" hidden>
+  <h3>背景地図</h3>
+  <div class="basemaps">
+    <button class="bm on" data-bm="pale"><i style="background:linear-gradient(135deg,#f4f4f0 45%,#dfe6dd 45% 55%,#f4f4f0 55%)"></i>淡色</button>
+    <button class="bm" data-bm="std"><i style="background:linear-gradient(135deg,#fbf6e9 40%,#f7c873 40% 50%,#cde7c4 50%)"></i>標準</button>
+    <button class="bm" data-bm="photo"><i style="background:linear-gradient(135deg,#4b5b3f,#7a8a66 50%,#3d4a35)"></i>航空写真</button>
+    <button class="bm" data-bm="osm"><i style="background:linear-gradient(135deg,#f2efe9 40%,#fcd6a4 40% 50%,#aad3df 50%)"></i>OSM</button>
+  </div>
+  <h3>点の色分け</h3>
+  <div class="colormodes">
+    <button class="cm on" data-cm="cat">高木・中木</button>
+    <button class="cm" data-cm="sp">樹種</button>
+    <button class="cm" data-cm="h">樹高</button>
+    <button class="cm" data-cm="g">幹周</button>
+    <button class="cm" data-cm="heat" style="grid-column:span 2">密度（ヒートマップ）</button>
+  </div>
+</div>
+
+<!-- 下部ナビ -->
+<nav class="bottomnav" aria-label="メニュー">
+  <button data-pane="list"><i data-ic="list"></i>一覧</button>
+  <button data-pane="stats"><i data-ic="chart"></i>統計</button>
+  <button data-pane="notes"><i data-ic="bookmark"></i>マイメモ<span id="noteCnt" class="cnt" hidden></span></button>
+  <button data-pane="reports"><i data-ic="chat"></i>報告</button>
+  <button data-pane="about"><i data-ic="info"></i>情報</button>
+</nav>
+
+<!-- ボトムシート -->
+<section id="sheet" class="sheet" hidden aria-live="polite">
+  <div class="grab" id="grab"><span></span></div>
+  <div class="sheet-head" id="sheetHead">
+    <h2 id="sheetTitle"></h2>
+    <button id="sheetSize" class="icon-btn" aria-label="シートの大きさを切替"><i data-ic="expand"></i></button>
+    <button id="sheetClose" class="icon-btn" aria-label="閉じる"><i data-ic="x"></i></button>
+  </div>
+  <div class="sheet-body" id="sheetBody">
+
+    <!-- 絞り込み -->
+    <div class="pane" id="pane-filter">
+      <div class="field">
+        <span class="lbl">樹種（複数選べます）</span>
+        <div id="spChips" class="chips"></div>
+        <input id="spInput" class="inp" list="spList" placeholder="樹種名を入力して選択（例：サクラ）">
+        <datalist id="spList"></datalist>
+      </div>
+      <div class="field"><span class="lbl">区分</span>
+        <div class="seg" id="catSeg"><button data-v="" class="on">すべて</button></div>
+      </div>
+      <div class="grid2">
+        <label class="field"><span class="lbl">行政区</span><select id="ward" class="inp"><option value="">すべて</option></select></label>
+        <label class="field"><span class="lbl">道路種別</span><select id="type" class="inp"><option value="">すべて</option></select></label>
+      </div>
+      <label class="field"><span class="lbl">路線名</span><select id="route" class="inp"><option value="">すべて</option></select></label>
+      <div class="field"><span class="lbl">樹高（m）</span>
+        <div class="range"><input id="hMin" class="inp" type="number" inputmode="decimal" min="0" step="0.5" placeholder="下限"><span class="muted">〜</span><input id="hMax" class="inp" type="number" inputmode="decimal" min="0" step="0.5" placeholder="上限"></div>
+      </div>
+      <div class="field"><span class="lbl">幹周（cm）</span>
+        <div class="range"><input id="gMin" class="inp" type="number" inputmode="numeric" min="0" placeholder="下限"><span class="muted">〜</span><input id="gMax" class="inp" type="number" inputmode="numeric" min="0" placeholder="上限"></div>
+      </div>
+      <label class="toggle">メモ・お気に入りの木だけ表示<span class="switch"><input id="onlyNoted" type="checkbox"><span></span></span></label>
+      <div class="sticky-foot">
+        <button id="resetBtn" class="btn sub">クリア</button>
+        <button id="applyBtn" class="btn main">表示する</button>
+      </div>
+    </div>
+
+    <!-- 一覧 -->
+    <div class="pane" id="pane-list">
+      <div class="listhead"><span id="listMeta"></span>
+        <span><button id="fitBtn" class="btn line" style="min-height:32px;padding:0 10px;font-size:12px">全体を表示</button>
+        <button id="csvBtn" class="btn line" style="min-height:32px;padding:0 10px;font-size:12px">CSV</button></span></div>
+      <ol id="resultList" class="list"></ol>
+    </div>
+
+    <!-- 統計 -->
+    <div class="pane" id="pane-stats">
+      <div class="seg" id="statsScope" style="margin-bottom:12px"><button data-v="all" class="on">絞り込み結果全体</button><button data-v="view">地図の表示範囲</button></div>
+      <div id="statsBody"></div>
+    </div>
+
+    <!-- マイメモ -->
+    <div class="pane" id="pane-notes">
+      <p class="muted small" style="margin-top:0">メモ・写真・お気に入りは、この端末のブラウザ内だけに保存されます。</p>
+      <button id="addPointBtn" class="btn block"><i data-ic="plus"></i>データにない木を地図に追加</button>
+      <ol id="noteList" class="list" style="margin-top:6px"></ol>
+      <div class="sec-title">バックアップ <span class="muted small">端末の移行にも</span></div>
+      <div class="btnrow">
+        <button id="expJson" class="btn sub">JSON</button>
+        <button id="expGeo" class="btn sub">GeoJSON</button>
+        <button id="expCsv" class="btn sub">CSV</button>
+        <label class="btn sub file-btn">読み込み<input id="impJson" type="file" accept=".json,application/json"></label>
+      </div>
+    </div>
+
+    <!-- みんなの報告 -->
+    <div class="pane" id="pane-reports">
+      <p class="muted small" style="margin-top:0">GitHub Issue で投稿された報告です。木を選んで「報告する」から投稿できます。</p>
+      <ol id="reportList" class="list"></ol>
+      <a id="issuesLink" class="btn line block" target="_blank" rel="noopener" style="margin-top:10px">GitHubで報告をすべて見る</a>
+    </div>
+
+    <!-- 情報 -->
+    <div class="pane prose" id="pane-about">
+      <p style="margin-top:0">東京都が公開している23区内の都道の街路樹データ（約14万本）を地図で検索・閲覧できるアプリです。</p>
+      <h3>使い方</h3>
+      <ul>
+        <li>地図の点をタップすると、その木の情報が表示されます。</li>
+        <li>上の検索バーや樹種ボタン、<b>絞り込み</b>ボタンで表示する木を絞れます。</li>
+        <li>右下の <b>現在地ボタン</b> で現在地を表示し、「一覧」で近い木から順に見られます。</li>
+        <li>木ごとに <b>メモ・写真・お気に入り</b> を登録できます（端末内に保存）。</li>
+        <li>枯れや倒木の恐れ、データの誤りなどは <b>「報告する」</b> から公開の報告として投稿できます。</li>
+      </ul>
+      <h3>出典</h3>
+      <p id="sourceText"></p>
+      <p>背景地図：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a>（国土地理院）／ © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a></p>
+      <p class="muted small">データは公開時点のもので、現況と異なる場合があります。緊急の危険（倒木など）は道路管理者や警察・消防へ直接連絡してください。</p>
+    </div>
+
+    <!-- 樹木の詳細 -->
+    <div class="pane" id="pane-detail"></div>
+  </div>
+</section>
+
+<div id="addBar" class="addbar" hidden><span>地図を動かして <b>＋</b> を木の位置に合わせてください</span><button id="addOk">ここに追加</button><button id="addCancel">やめる</button></div>
+<svg id="crosshair" class="crosshair" viewBox="0 0 44 44" hidden aria-hidden="true"><circle cx="22" cy="22" r="9" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M22 2v12M22 30v12M2 22h12M30 22h12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+<div id="toast" class="toast" hidden role="status"></div>
+<div id="loading" class="loading">
+  <svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="#2f8052"/><circle cx="32" cy="27" r="15" fill="#8fd19e"/><rect x="29.5" y="36" width="5" height="17" rx="2" fill="#f3efe4"/></svg>
+  <h1>東京23区 街路樹マップ</h1>
+  <div class="bar-load"><span></span></div>
+  <p id="loadMsg">約14万本の街路樹データを読み込んでいます…</p>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+/* =====================================================================
+ * 設定：公開するリポジトリに合わせて変更できます
+ * ===================================================================== */
+window.APP_CONFIG = {
+  // GitHub リポジトリ（"ユーザー名/リポジトリ名"）。空欄なら GitHub Pages の URL から自動判定
+  githubRepo: "",
+  issueTemplate: "tree-report.yml",
+  issueLabel: "tree-report",
+  center: [139.745, 35.69],
+  zoom: 11,
+  // データファイル（上から順に探します）
+  treesUrls: ["data/trees.json", "trees.json"],
+  reportsUrls: ["data/reports.json", "reports.json"],
+  sourceText: "街路樹データ：東京都「街路樹」（東京都オープンデータカタログサイト）を加工して作成",
+  quickSpecies: ["イチョウ", "サクラ", "ケヤキ", "ハナミズキ", "スズカケノキ", "トウカエデ", "クスノキ", "キンモクセイ", "モミジバフウ", "ユリノキ"],
+};
+
+/* =====================================================================
+ * メモの保存（IndexedDB。使えない環境ではメモリ上に保持）
+ * ===================================================================== */
+window.NoteStore = (function () {
+  const DB = "tokyo-street-trees", ST = "notes", mem = new Map();
+  let p = null, useMem = false;
+  function open() {
+    if (p) return p;
+    p = new Promise((res) => {
+      try {
+        const r = indexedDB.open(DB, 1);
+        r.onupgradeneeded = () => r.result.createObjectStore(ST, { keyPath: "id" });
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => { useMem = true; res(null); };
+      } catch (e) { useMem = true; res(null); }
+    });
+    return p;
+  }
+  function tx(db, mode, fn) {
+    return new Promise((res, rej) => {
+      const t = db.transaction(ST, mode), r = fn(t.objectStore(ST));
+      t.oncomplete = () => res(r && r.result); t.onerror = () => rej(t.error);
+    });
+  }
+  return {
+    get isPersistent() { return !useMem; },
+    async all() { const db = await open(); return db ? tx(db, "readonly", (s) => s.getAll()) : [...mem.values()]; },
+    async put(n, keepUpdated) {
+      if (!keepUpdated || !n.updated) n.updated = new Date().toISOString();
+      const db = await open(); if (!db) { mem.set(n.id, n); return n; }
+      await tx(db, "readwrite", (s) => s.put(n)); return n;
+    },
+    async remove(id) { const db = await open(); if (!db) { mem.delete(id); return; } await tx(db, "readwrite", (s) => s.delete(id)); },
+  };
+})();
+
+/* =====================================================================
+ * アプリ本体
+ * ===================================================================== */
+(function () {
+  "use strict";
+  const CFG = window.APP_CONFIG;
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => [...document.querySelectorAll(s)];
+  const fmt = (n) => n.toLocaleString("ja-JP");
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const toKata = (s) => s.replace(/[ぁ-ゖ]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0x60));
+  const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+  const isWide = () => matchMedia("(min-width: 900px)").matches;
+
+  // ---------- アイコン ----------
+  const ICONS = {
+    x: '<path d="M18 6 6 18M6 6l12 12"/>',
+    filter: '<path d="M4 6h16M7 12h10M10 18h4"/>',
+    layers: '<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/>',
+    locate: '<circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/>',
+    list: '<path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>',
+    chart: '<path d="M4 20V11M10 20V5M16 20v-6M21 20H3"/>',
+    bookmark: '<path d="M6 3h12v18l-6-4-6 4V3Z"/>',
+    chat: '<path d="M21 14a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    expand: '<path d="m6 15 6-6 6 6"/>',
+    shrink: '<path d="m6 9 6 6 6-6"/>',
+    star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L3 9.6l6.2-.9L12 3Z"/>',
+    share: '<path d="M12 3v13M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/>',
+    pin: '<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/>',
+    eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+    same: '<circle cx="12" cy="9" r="6"/><path d="M12 15v6M9 21h6"/>',
+    camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4Z"/><circle cx="12" cy="13" r="3.5"/>',
+    tree: '<circle cx="12" cy="9" r="6"/><path d="M12 15v6"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+  };
+  const ic = (n) => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ""}</svg>`;
+  const paintIcons = (root = document) => root.querySelectorAll("i[data-ic]").forEach((el) => { el.outerHTML = ic(el.dataset.ic); });
+
+  const CONDITIONS = ["", "健全", "要観察", "枝折れ・倒木の恐れ", "枯れ・衰弱", "病害虫", "損傷あり", "撤去済み"];
+  const PHENOLOGY = ["新緑", "開花", "結実", "紅葉・黄葉", "落葉"];
+  const REPORT_TYPES = { "枝折れ・倒木の恐れ": "倒木・枝折れの恐れ", "枯れ・衰弱": "枯れ・衰弱", "病害虫": "病害虫", "損傷あり": "損傷（幹・根・支柱）", "撤去済み": "伐採・撤去されている" };
+  const PALETTE = ["#2e7d32", "#f9a825", "#c2185b", "#1565c0", "#ef6c00", "#6a1b9a", "#00897b", "#8d6e63", "#d84315", "#5e35b1"];
+  const CAT_COLORS = { "高木": "#2e7d32", "中木": "#8bc34a" };
+  const TITLES = { filter: "絞り込み", list: "一覧", stats: "統計", notes: "マイメモ", reports: "みんなの報告", about: "このアプリについて" };
+
+  // ---------- 状態 ----------
+  let D, C, N, mask, matchCount = 0;
+  let selected = null, pane = null, colorMode = "cat", userLoc = null, addMode = false;
+  let topSpecies = [], spCount = new Map();
+  const notes = new Map();
+  let reports = [];
+  const F = { q: "", sp: new Set(), ward: "", cat: "", type: "", route: "", hMin: null, hMax: null, gMin: null, gMax: null, onlyNoted: false };
+
+  function repo() {
+    if (CFG.githubRepo) return CFG.githubRepo;
+    const h = location.hostname;
+    if (h.endsWith(".github.io")) {
+      const first = location.pathname.split("/").filter(Boolean)[0];
+      return `${h.split(".")[0]}/${first && !first.includes(".") ? first : h}`;
+    }
+    return "";
+  }
+
+  // ---------- 外部ライブラリ（CDNが落ちていたら予備から） ----------
+  function ensureMapLib() {
+    if (window.maplibregl) return Promise.resolve();
+    return new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js";
+      s.onload = res; s.onerror = () => rej(new Error("地図ライブラリを読み込めませんでした。通信環境を確認してください。"));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function fetchFirst(urls, opt) {
+    let last;
+    for (const u of urls) {
+      try { const r = await fetch(u, opt); if (r.ok) return await r.json(); last = new Error(u + " (" + r.status + ")"); }
+      catch (e) { last = e; }
+    }
+    throw last || new Error("not found");
+  }
+
+  // ---------- 地図 ----------
+  let map, geo;
+  function createMap() {
+    const GSI = "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>";
+    const raster = (url, max, attr) => ({ type: "raster", tiles: [url], tileSize: 256, maxzoom: max, attribution: attr });
+    map = new maplibregl.Map({
+      container: "map", hash: "map", center: CFG.center, zoom: CFG.zoom, maxZoom: 19, minZoom: 8,
+      attributionControl: { compact: true }, dragRotate: false, pitchWithRotate: false, touchPitch: false,
+      style: {
+        version: 8,
+        sources: {
+          pale: raster("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", 18, GSI),
+          std: raster("https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png", 18, GSI),
+          photo: raster("https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg", 18, GSI),
+          osm: raster("https://tile.openstreetmap.org/{z}/{x}/{y}.png", 19, "© <a href='https://www.openstreetmap.org/copyright' target='_blank'>OpenStreetMap</a>"),
+        },
+        layers: [
+          { id: "bg", type: "background", paint: { "background-color": "#eef1ea" } },
+          ...["pale", "std", "photo", "osm"].map((k) => ({ id: "base-" + k, type: "raster", source: k, layout: { visibility: k === "pale" ? "visible" : "none" } })),
+        ],
+      },
+    });
+    map.touchZoomRotate.disableRotation();
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
+    geo = new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true, timeout: 15000 }, trackUserLocation: true, showAccuracyCircle: true, fitBoundsOptions: { maxZoom: 17 } });
+    map.addControl(geo, "top-right");
+    // タイルが取得できなくても起動できるよう styledata を待つ
+    return new Promise((r) => { map.once("styledata", r); map.once("load", r); });
+  }
+
+  function treesGeoJSON() {
+    const features = new Array(N);
+    for (let i = 0; i < N; i++) {
+      features[i] = { type: "Feature", geometry: { type: "Point", coordinates: [C.x[i], C.y[i]] },
+        properties: { i, sp: C.sp[i], cat: C.cat[i], ward: C.ward[i], type: C.type[i], route: C.route[i], road: C.road[i], h: C.h[i] ?? 0, g: C.g[i] ?? -1 } };
+    }
+    return { type: "FeatureCollection", features };
+  }
+  const notesGeoJSON = () => ({ type: "FeatureCollection", features: [...notes.values()].filter((n) => isFinite(n.lon)).map((n) => ({ type: "Feature", geometry: { type: "Point", coordinates: [n.lon, n.lat] }, properties: { nid: n.id, fav: !!n.fav } })) });
+  const reportsGeoJSON = () => ({ type: "FeatureCollection", features: reports.map((r, k) => ({ type: "Feature", geometry: { type: "Point", coordinates: [r.lon, r.lat] }, properties: { k, open: r.state === "open" } })) });
+
+  function addLayers() {
+    map.addSource("trees", { type: "geojson", data: treesGeoJSON(), promoteId: "i", buffer: 32, tolerance: 0 });
+    map.addLayer({ id: "heat", type: "heatmap", source: "trees", maxzoom: 16, layout: { visibility: "none" }, paint: {
+      "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 9, 4, 15, 16], "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 9, .4, 15, 1.3], "heatmap-opacity": .8,
+      "heatmap-color": ["interpolate", ["linear"], ["heatmap-density"], 0, "rgba(0,0,0,0)", .2, "#c5e1a5", .5, "#7cb342", .8, "#33691e", 1, "#1b3d12"] } });
+    map.addLayer({ id: "trees", type: "circle", source: "trees", paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 1, 12, 2, 15, 5, 18, 10],
+      "circle-color": colorExpr("cat"), "circle-opacity": .9,
+      "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 13, 0, 15, 1.2], "circle-stroke-color": "#ffffff" } });
+    map.addLayer({ id: "trees-sel", type: "circle", source: "trees", filter: ["==", ["get", "i"], -1], paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 8, 18, 18], "circle-color": "rgba(229,57,53,.15)", "circle-stroke-width": 3, "circle-stroke-color": "#e53935" } });
+    map.addSource("reports", { type: "geojson", data: reportsGeoJSON() });
+    map.addLayer({ id: "reports", type: "circle", source: "reports", paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 4, 18, 14], "circle-color": "rgba(0,0,0,0)", "circle-stroke-width": 2.5,
+      "circle-stroke-color": ["case", ["get", "open"], "#d32f2f", "#8a8a8a"] } });
+    map.addSource("mine", { type: "geojson", data: notesGeoJSON() });
+    map.addLayer({ id: "mine", type: "circle", source: "mine", paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 3.5, 18, 10], "circle-color": ["case", ["get", "fav"], "#f2b705", "#ffffff"],
+      "circle-stroke-width": 2.5, "circle-stroke-color": "#263238" } });
+    for (const id of ["trees", "mine", "reports"]) {
+      map.on("mouseenter", id, () => { map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", id, () => { map.getCanvas().style.cursor = ""; });
+    }
+    map.on("click", onMapClick);
+  }
+
+  function onMapClick(e) {
+    if (addMode) return;
+    $("#layerPop").hidden = true;
+    const pad = 8, box = [[e.point.x - pad, e.point.y - pad], [e.point.x + pad, e.point.y + pad]];
+    const fs = map.queryRenderedFeatures(box, { layers: ["mine", "reports", "trees"] });
+    if (!fs.length) { if (pane === "detail") closeSheet(); return; }
+    // クリック位置に最も近いものを選ぶ
+    const f = fs.map((f) => { const p = map.project(f.geometry.coordinates); return [Math.hypot(p.x - e.point.x, p.y - e.point.y) - (f.layer.id === "trees" ? 0 : 3), f]; }).sort((a, b) => a[0] - b[0])[0][1];
+    if (f.layer.id === "mine") { const n = notes.get(f.properties.nid); if (n && n.tree != null) selectTree(n.tree); else if (n) openCustom(n); }
+    else if (f.layer.id === "reports") { const r = reports[f.properties.k]; if (r.tree_id != null) selectTree(r.tree_id); else openReport(r); }
+    else selectTree(f.properties.i);
+  }
+
+  // ---------- 色分け ----------
+  function treeColor(i) {
+    if (colorMode === "sp") { const k = topSpecies.indexOf(C.sp[i]); return k >= 0 && k < 10 ? PALETTE[k] : "#9e9e9e"; }
+    return CAT_COLORS[D.cat[C.cat[i]]] || "#2e7d32";
+  }
+  function colorExpr(mode) {
+    if (mode === "cat" || mode === "heat") return ["match", ["get", "cat"], D.cat.indexOf("高木"), CAT_COLORS["高木"], CAT_COLORS["中木"]];
+    if (mode === "sp") { const m = ["match", ["get", "sp"]]; topSpecies.slice(0, 10).forEach((s, k) => m.push(s, PALETTE[k])); m.push("#9e9e9e"); return m; }
+    if (mode === "h") return ["interpolate", ["linear"], ["get", "h"], 0, "#fff59d", 3, "#c0ca33", 8, "#43a047", 15, "#1b5e20", 25, "#0b2e10"];
+    if (mode === "g") return ["case", ["<", ["get", "g"], 0], "#bdbdbd", ["interpolate", ["linear"], ["get", "g"], 0, "#ffe0b2", 50, "#ffb74d", 100, "#f57c00", 200, "#8d3b00", 400, "#3e1a00"]];
+  }
+  function setColorMode(m) {
+    colorMode = m;
+    $$(".cm").forEach((b) => b.classList.toggle("on", b.dataset.cm === m));
+    map.setLayoutProperty("heat", "visibility", m === "heat" ? "visible" : "none");
+    map.setPaintProperty("trees", "circle-opacity", m === "heat" ? ["interpolate", ["linear"], ["zoom"], 14, 0, 16, .9] : .9);
+    map.setPaintProperty("trees", "circle-color", colorExpr(m));
+    renderLegend();
+  }
+  function renderLegend() {
+    const it = (c, t) => `<span class="lg"><i style="background:${c}"></i>${esc(t)}</span>`;
+    const grad = (g, a, b, c) => `<span><span class="grad" style="background:linear-gradient(90deg,${g})"></span><span class="gradlbl"><span>${a}</span><span>${b}</span><span>${c}</span></span></span>`;
+    let h = "";
+    if (colorMode === "cat") h = it(CAT_COLORS["高木"], "高木") + it(CAT_COLORS["中木"], "中木");
+    if (colorMode === "sp") h = topSpecies.slice(0, 10).map((s, k) => it(PALETTE[k], D.sp[s])).join("") + it("#9e9e9e", "その他");
+    if (colorMode === "h") h = grad("#fff59d,#c0ca33,#43a047,#1b5e20,#0b2e10", "0m", "樹高 8m", "25m");
+    if (colorMode === "g") h = grad("#ffe0b2,#ffb74d,#f57c00,#8d3b00,#3e1a00", "0cm", "幹周 100cm", "400cm");
+    if (colorMode === "heat") h = grad("#c5e1a5,#7cb342,#33691e,#1b3d12", "疎", "密度", "密");
+    if (notes.size) h += `<span class="lg"><i class="mine"></i>メモ</span>`;
+    if (reports.length) h += `<span class="lg"><i class="ring"></i>報告</span>`;
+    $("#legend").innerHTML = h;
+  }
+
+  // ---------- 絞り込み ----------
+  const dictMatches = (dict, q) => dict.reduce((a, v, k) => (toKata(v).includes(q) && a.push(k), a), []);
+
+  function buildFilter() {
+    const parts = [], tests = [];
+    const q = toKata(F.q.trim());
+    const idm = q.match(/^[#＃]\s*(\d+)$/);
+    if (idm) { const id = +idm[1]; parts.push(["==", ["get", "i"], id]); tests.push((i) => i === id); }
+    else if (q) {
+      const s = new Set(dictMatches(D.sp, q)), r = new Set(dictMatches(D.route, q)), d = new Set(dictMatches(D.road, q)), w = new Set(dictMatches(D.ward, q));
+      parts.push(["any", ["in", ["get", "sp"], ["literal", [...s]]], ["in", ["get", "route"], ["literal", [...r]]], ["in", ["get", "road"], ["literal", [...d]]], ["in", ["get", "ward"], ["literal", [...w]]]]);
+      tests.push((i) => s.has(C.sp[i]) || r.has(C.route[i]) || d.has(C.road[i]) || w.has(C.ward[i]));
+    }
+    if (F.sp.size) { parts.push(["in", ["get", "sp"], ["literal", [...F.sp]]]); tests.push((i) => F.sp.has(C.sp[i])); }
+    for (const k of ["ward", "cat", "type", "route"]) if (F[k] !== "") { const v = +F[k]; parts.push(["==", ["get", k], v]); tests.push((i) => C[k][i] === v); }
+    if (F.hMin != null) { const v = F.hMin; parts.push([">=", ["get", "h"], v]); tests.push((i) => (C.h[i] ?? 0) >= v); }
+    if (F.hMax != null) { const v = F.hMax; parts.push(["<=", ["get", "h"], v]); tests.push((i) => (C.h[i] ?? 0) <= v); }
+    if (F.gMin != null) { const v = F.gMin; parts.push([">=", ["get", "g"], v]); tests.push((i) => (C.g[i] ?? -1) >= v); }
+    if (F.gMax != null) { const v = F.gMax; parts.push(["all", [">=", ["get", "g"], 0], ["<=", ["get", "g"], v]]); tests.push((i) => { const g = C.g[i] ?? -1; return g >= 0 && g <= v; }); }
+    if (F.onlyNoted) { const ids = [...notes.values()].filter((n) => n.tree != null).map((n) => n.tree), set = new Set(ids); parts.push(["in", ["get", "i"], ["literal", ids]]); tests.push((i) => set.has(i)); }
+    return { expr: parts.length ? ["all", ...parts] : null, tests };
+  }
+
+  function computeMask(tests) {
+    let cnt = 0;
+    if (!tests.length) { mask.fill(1); return N; }
+    for (let i = 0; i < N; i++) {
+      let ok = 1;
+      for (let t = 0; t < tests.length; t++) if (!tests[t](i)) { ok = 0; break; }
+      mask[i] = ok; cnt += ok;
+    }
+    return cnt;
+  }
+
+  function applyFilters() {
+    const { expr, tests } = buildFilter();
+    matchCount = computeMask(tests);
+    map.setFilter("trees", expr); map.setFilter("heat", expr);
+    $("#countPill").textContent = matchCount === N ? `${fmt(N)} 本の街路樹` : `${fmt(matchCount)} 本が該当`;
+    const nf = filterCount();
+    $("#fBadge").hidden = !nf; $("#fBadge").textContent = nf;
+    $("#applyBtn").textContent = `${fmt(matchCount)} 本を表示`;
+    renderChipRow();
+    if (pane === "list") renderList();
+    if (pane === "stats") renderStats();
+  }
+  const filterCount = () => F.sp.size + ["ward", "cat", "type", "route"].filter((k) => F[k] !== "").length + ["hMin", "hMax", "gMin", "gMax"].filter((k) => F[k] != null).length + (F.onlyNoted ? 1 : 0);
+
+  function syncFilterForm() {
+    $("#spChips").innerHTML = [...F.sp].map((k) => `<span class="chip">${esc(D.sp[k])}<button data-rm="${k}" aria-label="外す">×</button></span>`).join("");
+    for (const k of ["ward", "type", "route"]) $("#" + k).value = F[k];
+    $$("#catSeg button").forEach((b) => b.classList.toggle("on", b.dataset.v === F.cat));
+    for (const k of ["hMin", "hMax", "gMin", "gMax"]) $("#" + k).value = F[k] ?? "";
+    $("#onlyNoted").checked = F.onlyNoted;
+  }
+
+  // 検索バー下のチップ：有効な条件（×で解除）＋よく見る樹種
+  function renderChipRow() {
+    const out = [];
+    const on = (label, key, val) => out.push(`<button class="qchip on" data-off="${key}" data-val="${val ?? ""}">${esc(label)}<span class="x">×</span></button>`);
+    F.sp.forEach((k) => on(D.sp[k], "sp", k));
+    if (F.ward !== "") on(D.ward[F.ward], "ward");
+    if (F.cat !== "") on(D.cat[F.cat], "cat");
+    if (F.type !== "") on(D.type[F.type], "type");
+    if (F.route !== "") on(D.route[F.route], "route");
+    if (F.hMin != null || F.hMax != null) on(`樹高 ${F.hMin ?? ""}〜${F.hMax ?? ""}m`, "h");
+    if (F.gMin != null || F.gMax != null) on(`幹周 ${F.gMin ?? ""}〜${F.gMax ?? ""}cm`, "g");
+    if (F.onlyNoted) on("メモの木", "onlyNoted");
+    CFG.quickSpecies.map((n) => D.sp.indexOf(n)).filter((k) => k >= 0 && !F.sp.has(k)).forEach((k) => {
+      const c = colorMode === "sp" && topSpecies.indexOf(k) < 10 ? PALETTE[topSpecies.indexOf(k)] : "";
+      out.push(`<button class="qchip" data-sp="${k}">${c ? `<i style="background:${c}"></i>` : ""}${esc(D.sp[k])}</button>`);
+    });
+    $("#chiprow").innerHTML = out.join("");
+  }
+
+  // ---------- シート ----------
+  function openSheet(name, title) {
+    pane = name;
+    $$(".pane").forEach((p) => p.classList.toggle("on", p.id === "pane-" + name));
+    $$(".bottomnav button").forEach((b) => b.classList.toggle("active", b.dataset.pane === name));
+    $("#sheetTitle").textContent = title || TITLES[name] || "";
+    const s = $("#sheet");
+    s.hidden = false; s.classList.remove("closing");
+    document.body.classList.add("sheet-on");
+    $("#sheetBody").scrollTop = 0;
+    $("#layerPop").hidden = true;
+    if (name === "list") renderList();
+    if (name === "stats") renderStats();
+    if (name === "filter") syncFilterForm();
+    if (name !== "detail") clearSelection();
+  }
+  function closeSheet() {
+    const s = $("#sheet");
+    if (s.hidden) return;
+    s.classList.add("closing");
+    document.body.classList.remove("sheet-on", "sheet-full");
+    $$(".bottomnav button").forEach((b) => b.classList.remove("active"));
+    setTimeout(() => { if (s.classList.contains("closing")) { s.hidden = true; s.classList.remove("closing", "full"); setSizeIcon(); } }, 280);
+    if (pane === "detail") clearSelection();
+    pane = null;
+  }
+  function setFull(full) {
+    $("#sheet").classList.toggle("full", full);
+    document.body.classList.toggle("sheet-full", full);
+    setSizeIcon();
+  }
+  function setSizeIcon() { $("#sheetSize").innerHTML = ic($("#sheet").classList.contains("full") ? "shrink" : "expand"); }
+
+  // シートのドラッグ（スマホ）
+  function initSheetDrag() {
+    const s = $("#sheet");
+    let y0 = null, h0 = 0, moved = 0;
+    const start = (e) => { if (isWide() || e.target.closest("button")) return; y0 = e.clientY; h0 = s.getBoundingClientRect().height; moved = 0; s.classList.add("dragging"); s.setPointerCapture?.(e.pointerId); };
+    const move = (e) => { if (y0 == null) return; moved = y0 - e.clientY; s.style.height = Math.max(80, h0 + moved) + "px"; };
+    const end = () => {
+      if (y0 == null) return;
+      s.classList.remove("dragging"); s.style.height = ""; y0 = null;
+      const vh = innerHeight;
+      if (Math.abs(moved) < 6) { setFull(!s.classList.contains("full")); return; }
+      const h = h0 + moved;
+      if (h < vh * 0.3) closeSheet(); else setFull(h > vh * 0.68);
+    };
+    for (const el of [$("#grab"), $("#sheetHead")]) { el.addEventListener("pointerdown", start); el.addEventListener("pointermove", move); el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end); }
+  }
+
+  // シートで隠れていない範囲の中心に移動
+  function flyToTree(lon, lat, zoom) {
+    const sheetH = !$("#sheet").hidden && !isWide() ? $("#sheet").getBoundingClientRect().height : 0;
+    const sheetW = !$("#sheet").hidden && isWide() ? 416 : 0;
+    map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), zoom || 17), offset: [sheetW / 2, -sheetH / 2], duration: 900 });
+  }
+
+  // ---------- 一覧 ----------
+  const inView = (i, b) => { const x = C.x[i], y = C.y[i]; return x >= b.getWest() && x <= b.getEast() && y >= b.getSouth() && y <= b.getNorth(); };
+  const distM = (lon1, lat1, lon2, lat2) => { const k = Math.cos(lat1 * Math.PI / 180); return Math.hypot((lon2 - lon1) * k, lat2 - lat1) * 111320; };
+  const fmtDist = (m) => m < 1000 ? Math.round(m) + "m" : (m / 1000).toFixed(1) + "km";
+
+  function renderList() {
+    if (!C) return;
+    const b = map.getBounds(), c = map.getCenter();
+    const ref = userLoc && b.contains(userLoc) ? userLoc : [c.lng, c.lat];
+    const hits = []; let n = 0;
+    for (let i = 0; i < N; i++) {
+      if (!mask[i] || !inView(i, b)) continue;
+      n++; hits.push([distM(ref[0], ref[1], C.x[i], C.y[i]), i]);
+    }
+    hits.sort((a, b) => a[0] - b[0]);
+    const useLoc = ref === userLoc;
+    $("#listMeta").textContent = n ? `表示範囲に ${fmt(n)} 本${useLoc ? "・現在地から近い順" : "・地図の中心から近い順"}` : "";
+    $("#resultList").innerHTML = hits.length ? hits.slice(0, 150).map(([d, i]) => treeItem(i, useLoc ? fmtDist(d) : "")).join("")
+      : `<li class="empty">${ic("search")}表示範囲に該当する木がありません。<br>地図を動かすか、条件を変えてください。</li>`;
+  }
+  function treeItem(i, end) {
+    const n = notes.get("t-" + i), sp = D.sp[C.sp[i]];
+    return `<li><button class="item" data-tree="${i}">
+      <span class="avatar" style="background:${treeColor(i)}">${esc(sp[0])}</span>
+      <span class="item-txt"><span class="item-main">${esc(sp)} ${n?.fav ? '<span class="star">★</span>' : ""}${n && !n.fav ? '<span class="tag">メモ</span>' : ""}</span>
+      <span class="item-sub">${esc(D.cat[C.cat[i]])}・樹高${C.h[i] ?? "-"}m${C.g[i] != null ? `・幹周${C.g[i]}cm` : ""}　${esc(roadName(i))}</span></span>
+      ${end ? `<span class="item-end">${end}</span>` : ""}</button></li>`;
+  }
+  const roadName = (i) => C.road[i] >= 0 ? D.road[C.road[i]] : D.route[C.route[i]];
+
+  // ---------- 統計 ----------
+  function renderStats() {
+    if (!C) return;
+    const view = $("#statsScope .on").dataset.v === "view", b = map.getBounds();
+    const sp = new Map(), ward = new Map(); let n = 0, hi = 0, hs = 0, gs = 0, gn = 0, hmax = 0;
+    const hiIdx = D.cat.indexOf("高木");
+    for (let i = 0; i < N; i++) {
+      if (!mask[i] || (view && !inView(i, b))) continue;
+      n++; sp.set(C.sp[i], (sp.get(C.sp[i]) || 0) + 1); ward.set(C.ward[i], (ward.get(C.ward[i]) || 0) + 1);
+      if (C.cat[i] === hiIdx) hi++;
+      const h = C.h[i] ?? 0; hs += h; if (h > hmax) hmax = h;
+      if (C.g[i] != null) { gs += C.g[i]; gn++; }
+    }
+    if (!n) { $("#statsBody").innerHTML = `<p class="empty">${ic("chart")}該当する木がありません。</p>`; return; }
+    const bars = (m, dict, key, lim) => { const a = [...m.entries()].sort((x, y) => y[1] - x[1]).slice(0, lim), mx = a[0][1];
+      return `<ul class="bars">${a.map(([k, v]) => `<li><button class="bar" data-${key}="${k}"><span class="bar-lbl">${esc(dict[k])}</span><span class="bar-track"><span style="width:${(v / mx * 100).toFixed(1)}%"></span></span><span class="bar-val">${fmt(v)}</span></button></li>`).join("")}</ul>`; };
+    $("#statsBody").innerHTML = `
+      <div class="kpis">
+        <div class="kpi"><span>本数</span><b>${fmt(n)}</b></div>
+        <div class="kpi"><span>樹種数</span><b>${fmt(sp.size)}</b></div>
+        <div class="kpi"><span>高木の割合</span><b>${Math.round(hi / n * 100)}<small>%</small></b></div>
+        <div class="kpi"><span>平均樹高</span><b>${(hs / n).toFixed(1)}<small>m</small></b></div>
+        <div class="kpi"><span>平均幹周</span><b>${gn ? Math.round(gs / gn) : "-"}<small>cm</small></b></div>
+        <div class="kpi"><span>最大樹高</span><b>${hmax}<small>m</small></b></div>
+      </div>
+      <div class="sec-title">樹種 上位15 <span class="muted small">タップで絞り込み</span></div>${bars(sp, D.sp, "sp", 15)}
+      ${ward.size > 1 ? `<div class="sec-title">行政区別</div>${bars(ward, D.ward, "ward", 23)}` : ""}`;
+  }
+
+  // ---------- 詳細 ----------
+  function setHashTree(id) {
+    const parts = location.hash.replace(/^#/, "").split("&").filter((p) => p && !p.startsWith("tree="));
+    if (id != null) parts.push("tree=" + id);
+    history.replaceState(null, "", "#" + parts.join("&"));
+  }
+  const hashTree = () => { const m = location.hash.match(/(?:^#|&)tree=(\d+)/); return m ? +m[1] : null; };
+  function clearSelection() { selected = null; if (map.getLayer("trees-sel")) map.setFilter("trees-sel", ["==", ["get", "i"], -1]); setHashTree(null); }
+
+  function selectTree(i, fly) {
+    if (!(i >= 0 && i < N)) return;
+    openTreeDetail(i);
+    selected = i;
+    map.setFilter("trees-sel", ["==", ["get", "i"], i]);
+    setHashTree(i);
+    if (fly) flyToTree(C.x[i], C.y[i]);
+  }
+
+  const tile = (lbl, v, unit) => `<div class="tile"><span>${lbl}</span><b>${v ?? "-"}</b>${v != null ? `<small>${unit}</small>` : ""}</div>`;
+  const row = (k, v) => v == null || v === "" ? "" : `<tr><th>${esc(k)}</th><td>${v}</td></tr>`;
+
+  function openTreeDetail(i) {
+    const sp = D.sp[C.sp[i]], lat = C.y[i], lon = C.x[i];
+    const note = notes.get("t-" + i) || { id: "t-" + i, tree: i, lon, lat, sp };
+    const rs = reports.filter((r) => r.tree_id === i);
+    openSheet("detail", "樹木の情報");
+    $("#pane-detail").innerHTML = `
+      <div class="hero"><span class="avatar" style="background:${treeColor(i)}">${esc(sp[0])}</span>
+        <div><div class="hero-title">${esc(sp)}</div><div class="hero-sub">${esc(D.cat[C.cat[i]])}・${esc(D.ward[C.ward[i]])}・${esc(roadName(i))}${userLoc ? `・現在地から${fmtDist(distM(userLoc[0], userLoc[1], lon, lat))}` : ""}</div></div></div>
+      <div class="tiles">${tile("樹高", C.h[i], "m")}${tile("幹周", C.g[i], "cm")}${tile("枝張", C.w[i], "m")}</div>
+      ${actionsRow(note, lat, lon, true)}
+      ${rs.length ? `<div class="sec-title">みんなの報告 <span class="tag red">${rs.length}件</span></div>${rs.map(reportCard).join("")}` : ""}
+      <details class="attrs"><summary>すべての属性</summary><table>
+        ${row("樹木ID", "#" + i)}${row("樹種", esc(sp))}${row("区分", esc(D.cat[C.cat[i]]))}
+        ${row("樹高", C.h[i] != null ? C.h[i] + " m" : null)}${row("枝張", C.w[i] != null ? C.w[i] + " m" : null)}${row("幹周", C.g[i] != null ? C.g[i] + " cm" : null)}
+        ${row("行政区", esc(D.ward[C.ward[i]]))}${row("道路種別", esc(D.type[C.type[i]]))}
+        ${row("路線名", esc(D.route[C.route[i]]) + (C.no[i] != null ? `（整理番号 ${C.no[i]}）` : ""))}
+        ${row("通称道路名", C.road[i] >= 0 ? esc(D.road[C.road[i]]) : null)}${row("緯度・経度", `${lat.toFixed(6)}, ${lon.toFixed(6)}`)}
+      </table></details>
+      ${noteForm(note)}`;
+    bindDetail(note);
+  }
+
+  function actionsRow(note, lat, lon, isTree) {
+    return `<div class="actions">
+      <button class="act${note.fav ? " on" : ""}" data-act="fav"><span class="circ">${ic("star")}</span>${note.fav ? "お気に入り済" : "お気に入り"}</button>
+      <button class="act" data-act="share"><span class="circ">${ic("share")}</span>共有</button>
+      <a class="act" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}"><span class="circ">${ic("pin")}</span>地図アプリ</a>
+      <a class="act" target="_blank" rel="noopener" href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lon}"><span class="circ">${ic("eye")}</span>ストリート<br>ビュー</a>
+      ${isTree ? `<button class="act" data-act="samesp"><span class="circ">${ic("same")}</span>同じ樹種</button>` : `<button class="act" data-act="memo"><span class="circ">${ic("bookmark")}</span>メモへ</button>`}
+    </div>`;
+  }
+
+  function openCustom(note) {
+    openSheet("detail", "追加した木");
+    clearSelection(); selected = note.id;
+    $("#pane-detail").innerHTML = `
+      <div class="hero"><span class="avatar" style="background:#607d8b">${ic("plus")}</span>
+        <div><div class="hero-title">${esc(note.sp || "樹種未記入")}</div><div class="hero-sub">あなたが追加した地点・${note.lat.toFixed(5)}, ${note.lon.toFixed(5)}</div></div></div>
+      ${actionsRow(note, note.lat, note.lon, false)}
+      <label class="field"><span class="lbl">樹種（分かれば）</span><input id="nSp" class="inp" value="${esc(note.sp || "")}" list="spList" placeholder="例：サクラ"></label>
+      ${noteForm(note)}`;
+    bindDetail(note);
+  }
+
+  function openReport(r) {
+    openSheet("detail", "みんなの報告");
+    $("#pane-detail").innerHTML = `<p class="muted small" style="margin-top:0">樹木データにない地点の報告です。</p>${reportCard(r)}`;
+  }
+
+  function reportCard(r) {
+    const imgs = (r.images || []).filter((u) => /^https:\/\/(github\.com|user-images\.githubusercontent\.com|private-user-images\.githubusercontent\.com)\//.test(u));
+    return `<article class="card"><div class="card-head"><span class="tag ${r.state === "open" ? "red" : "gray"}">${r.state === "open" ? "受付中" : "終了"}</span>${esc(r.type || "報告")}</div>
+      <div class="muted small">${esc(r.date || (r.created || "").slice(0, 10))}　${esc(r.user || "")}</div>
+      ${r.details ? `<p class="pre">${esc(r.details)}</p>` : ""}
+      ${imgs.length ? `<div class="thumbs">${imgs.map((u) => `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="報告写真" loading="lazy"></a>`).join("")}</div>` : ""}
+      <a href="${esc(r.url)}" target="_blank" rel="noopener" class="small">GitHubで開く（#${esc(r.number)}）</a></article>`;
+  }
+
+  function noteForm(n) {
+    return `<div class="note-box" id="noteBox">
+      <div class="sec-title">${ic("bookmark")}マイメモ <span class="muted small">この端末に保存</span></div>
+      <label class="field"><span class="lbl">木の状態</span><select id="nCond" class="inp">${CONDITIONS.map((c) => `<option value="${esc(c)}"${n.condition === c ? " selected" : ""}>${c ? esc(c) : "選択してください"}</option>`).join("")}</select></label>
+      <div class="field"><span class="lbl">季節の様子</span><div class="pills">${PHENOLOGY.map((p) => `<label><input type="checkbox" name="phen" value="${esc(p)}"${(n.phen || []).includes(p) ? " checked" : ""}><span>${esc(p)}</span></label>`).join("")}</div></div>
+      <label class="field"><span class="lbl">観察日</span><input id="nDate" class="inp" type="date" value="${esc(n.date || "")}"></label>
+      <label class="field"><span class="lbl">メモ</span><textarea id="nMemo" class="inp" placeholder="気づいたこと、観察記録など">${esc(n.memo || "")}</textarea></label>
+      <div class="field"><span class="lbl">写真（4枚まで）</span><div id="nPhotos" class="thumbs"></div></div>
+      ${n.updated ? `<p class="muted small">最終更新：${new Date(n.updated).toLocaleString("ja-JP")}</p>` : ""}
+      <div class="btnrow"><button class="btn" data-act="save">メモを保存</button><button class="btn danger" data-act="del"${notes.has(n.id) ? "" : " hidden"}>削除</button></div>
+      <button class="btn gh block" data-act="issue">${ic("chat")}この木について報告する（公開）</button>
+      <p class="muted small">GitHubの公開Issueとして投稿されます（GitHubアカウントが必要）。写真は投稿画面で添付できます。</p>
+    </div>`;
+  }
+
+  function readForm(n) {
+    n.condition = $("#nCond").value; n.date = $("#nDate").value; n.memo = $("#nMemo").value;
+    n.phen = $$("input[name=phen]:checked").map((e) => e.value);
+    if ($("#nSp")) n.sp = $("#nSp").value.trim();
+    return n;
+  }
+  const isEmptyNote = (n) => n.tree != null && !n.fav && !n.condition && !n.date && !(n.memo || "").trim() && !(n.phen || []).length && !(n.photos || []).length;
+
+  async function saveNote(n, msg) {
+    if (isEmptyNote(n)) { await NoteStore.remove(n.id); notes.delete(n.id); }
+    else { await NoteStore.put(n); notes.set(n.id, n); }
+    refreshNotes(); if (msg) toast(msg);
+  }
+
+  function bindDetail(note) {
+    const body = $("#pane-detail");
+    let photos = [...(note.photos || [])];
+    const draft = () => readForm({ ...note, photos });
+    const renderPhotos = () => {
+      $("#nPhotos").innerHTML = photos.map((p, k) => `<span class="ph"><img src="${p}" alt="写真${k + 1}" data-view="${k}"><button class="ph-del" data-del="${k}" aria-label="削除">×</button></span>`).join("")
+        + (photos.length < 4 ? `<label class="addph" aria-label="写真を追加">${ic("camera")}<input id="nPhotoIn" type="file" accept="image/*" multiple></label>` : "");
+      const inp = $("#nPhotoIn");
+      if (inp) inp.onchange = async (e) => {
+        for (const f of [...e.target.files]) { if (photos.length >= 4) break; try { photos.push(await resizeImage(f, 1280, .8)); } catch { toast("画像を読み込めませんでした"); } }
+        renderPhotos(); toast("「メモを保存」で写真も保存されます");
+      };
+    };
+    renderPhotos();
+    body.onclick = async (e) => {
+      const del = e.target.closest("[data-del]")?.dataset.del, view = e.target.closest("[data-view]")?.dataset.view;
+      if (del != null) { photos.splice(+del, 1); renderPhotos(); return; }
+      if (view != null) { lightbox(photos[+view]); return; }
+      const btn = e.target.closest("[data-act]"); if (!btn) return;
+      const act = btn.dataset.act;
+      if (act === "samesp" && typeof selected === "number") { F.sp = new Set([C.sp[selected]]); applyFilters(); toast(`「${D.sp[C.sp[selected]]}」だけを表示しています`); }
+      if (act === "memo") $("#noteBox").scrollIntoView({ behavior: "smooth" });
+      if (act === "share") share(note);
+      if (act === "fav") {
+        const n = draft(); n.fav = !note.fav; note.fav = n.fav;
+        await saveNote(n, n.fav ? "お気に入りに追加しました" : "お気に入りを外しました");
+        btn.classList.toggle("on", n.fav); btn.lastChild.textContent = n.fav ? "お気に入り済" : "お気に入り";
+        body.querySelector('[data-act="del"]').hidden = !notes.has(n.id);
+      }
+      if (act === "save") { const n = draft(); Object.assign(note, n); await saveNote(n, "メモを保存しました"); body.querySelector('[data-act="del"]').hidden = !notes.has(n.id); }
+      if (act === "del") {
+        if (!confirm("この木のメモ・写真を削除しますか？")) return;
+        await NoteStore.remove(note.id); notes.delete(note.id); refreshNotes(); toast("メモを削除しました");
+        if (note.tree != null) selectTree(note.tree); else closeSheet();
+      }
+      if (act === "issue") openIssue(draft());
+    };
+  }
+
+  async function share(note) {
+    const url = location.href, title = (note.tree != null ? D.sp[C.sp[note.tree]] : note.sp || "街路樹") + "｜東京23区 街路樹マップ";
+    if (navigator.share) { try { await navigator.share({ title, url }); } catch { } return; }
+    try { await navigator.clipboard.writeText(url); toast("リンクをコピーしました"); } catch { prompt("このURLをコピーしてください", url); }
+  }
+
+  function resizeImage(file, maxSide, q) {
+    return new Promise((res, rej) => {
+      const url = URL.createObjectURL(file), img = new Image();
+      img.onload = () => { const s = Math.min(1, maxSide / Math.max(img.width, img.height)), cv = document.createElement("canvas");
+        cv.width = Math.round(img.width * s); cv.height = Math.round(img.height * s); cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+        URL.revokeObjectURL(url); res(cv.toDataURL("image/jpeg", q)); };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(); };
+      img.src = url;
+    });
+  }
+  function lightbox(src) { const d = document.createElement("div"); d.className = "lightbox"; d.innerHTML = `<img src="${src}" alt="写真">`; d.onclick = () => d.remove(); document.body.appendChild(d); }
+
+  // ---------- GitHub Issue ----------
+  function openIssue(n) {
+    const r = repo();
+    if (!r) { toast("報告先のGitHubリポジトリが未設定です（index.html の githubRepo を設定）", 5000); return; }
+    const isTree = n.tree != null, sp = isTree ? D.sp[C.sp[n.tree]] : (n.sp || "不明");
+    const place = isTree ? `${D.ward[C.ward[n.tree]]} ${roadName(n.tree)}` : "";
+    const type = !isTree ? "未登録の樹木" : (REPORT_TYPES[n.condition] || ((n.phen || []).length ? "開花・紅葉など季節の情報" : "その他"));
+    const lines = [];
+    if (n.condition) lines.push("状態: " + n.condition);
+    if ((n.phen || []).length) lines.push("季節の様子: " + n.phen.join("、"));
+    if ((n.memo || "").trim()) lines.push(n.memo.trim().slice(0, 1500));
+    const p = new URLSearchParams({ template: CFG.issueTemplate, labels: CFG.issueLabel, title: `[報告] ${sp}${isTree ? " #" + n.tree : ""} ${place}`.trim(),
+      tree_id: isTree ? String(n.tree) : "", species: sp, location: `${n.lat.toFixed(6)},${n.lon.toFixed(6)}`, report_type: type,
+      observed_date: n.date || new Date().toISOString().slice(0, 10), details: lines.join("\n") });
+    window.open(`https://github.com/${r}/issues/new?${p}`, "_blank", "noopener");
+  }
+
+  // ---------- マイメモ ----------
+  function refreshNotes() {
+    map.getSource("mine")?.setData(notesGeoJSON());
+    const arr = [...notes.values()].sort((a, b) => (b.updated || "").localeCompare(a.updated || ""));
+    $("#noteCnt").hidden = !arr.length; $("#noteCnt").textContent = arr.length;
+    $("#noteList").innerHTML = arr.length ? arr.map((n) => {
+      const sp = n.tree != null ? D.sp[C.sp[n.tree]] : (n.sp || "樹種未記入");
+      return `<li><button class="item" data-note="${esc(n.id)}"><span class="avatar" style="background:${n.tree != null ? treeColor(n.tree) : "#607d8b"}">${esc(sp[0])}</span>
+        <span class="item-txt"><span class="item-main">${esc(sp)} ${n.fav ? '<span class="star">★</span>' : ""} ${n.condition ? `<span class="tag">${esc(n.condition)}</span>` : ""} ${(n.photos || []).length ? `<span class="tag gray">写真${n.photos.length}</span>` : ""}</span>
+        <span class="item-sub">${n.tree != null ? esc(D.ward[C.ward[n.tree]]) + "・" + esc(roadName(n.tree)) : "追加した地点"}　${esc((n.memo || "").slice(0, 40))}</span></span></button></li>`;
+    }).join("") : `<li class="empty">${ic("bookmark")}まだメモはありません。<br>地図の木をタップして、お気に入りやメモを登録しましょう。</li>`;
+    renderLegend();
+    if (F.onlyNoted) applyFilters();
+  }
+
+  function download(name, text, type) {
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  }
+  const stamp = () => new Date().toISOString().slice(0, 10);
+  const csvCell = (v) => { const s = String(v ?? ""); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const noteRow = (n) => { const t = n.tree; return { ID: t ?? n.id, 樹種: t != null ? D.sp[C.sp[t]] : n.sp || "", 行政区: t != null ? D.ward[C.ward[t]] : "", 緯度: n.lat, 経度: n.lon,
+    お気に入り: n.fav ? "1" : "", 状態: n.condition || "", 観察日: n.date || "", 季節の様子: (n.phen || []).join("、"), メモ: n.memo || "", 写真枚数: (n.photos || []).length, 更新日時: n.updated || "" }; };
+
+  function exportNotes(kind) {
+    const arr = [...notes.values()];
+    if (!arr.length) { toast("書き出すメモがありません"); return; }
+    if (kind === "json") download(`street-tree-notes-${stamp()}.json`, JSON.stringify({ app: "tokyo-street-trees", version: 1, exported: new Date().toISOString(), notes: arr }), "application/json");
+    if (kind === "geo") download(`street-tree-notes-${stamp()}.geojson`, JSON.stringify({ type: "FeatureCollection", features: arr.map((n) => ({ type: "Feature", geometry: { type: "Point", coordinates: [n.lon, n.lat] }, properties: noteRow(n) })) }), "application/geo+json");
+    if (kind === "csv") { const rows = arr.map(noteRow), head = Object.keys(rows[0]); download(`street-tree-notes-${stamp()}.csv`, "﻿" + [head.join(","), ...rows.map((r) => head.map((h) => csvCell(r[h])).join(","))].join("\r\n"), "text/csv"); }
+  }
+  async function importNotes(file) {
+    try {
+      const j = JSON.parse(await file.text()), list = Array.isArray(j) ? j : j.notes;
+      if (!Array.isArray(list)) throw 0;
+      let added = 0;
+      for (const n of list) {
+        if (!n || typeof n.id !== "string" || !isFinite(n.lon) || !isFinite(n.lat)) continue;
+        const cur = notes.get(n.id); if (cur && (cur.updated || "") >= (n.updated || "")) continue;
+        await NoteStore.put(n, true); notes.set(n.id, n); added++;
+      }
+      refreshNotes(); toast(`${added} 件のメモを読み込みました`);
+    } catch { toast("読み込めませんでした（このアプリで書き出したJSONを選んでください）", 4000); }
+  }
+  function exportResults() {
+    if (!matchCount) { toast("該当する木がありません"); return; }
+    const head = ["樹木ID", "樹種", "区分", "樹高(m)", "枝張(m)", "幹周(cm)", "行政区", "種別", "整理番号", "路線名", "通称道路名", "経度", "緯度"], out = [head.join(",")];
+    for (let i = 0; i < N; i++) if (mask[i]) out.push([i, D.sp[C.sp[i]], D.cat[C.cat[i]], C.h[i], C.w[i], C.g[i], D.ward[C.ward[i]], D.type[C.type[i]], C.no[i], D.route[C.route[i]], C.road[i] >= 0 ? D.road[C.road[i]] : "", C.x[i], C.y[i]].map(csvCell).join(","));
+    download(`street-trees-${stamp()}.csv`, "﻿" + out.join("\r\n"), "text/csv");
+    toast(`${fmt(matchCount)} 本をCSVで保存しました`);
+  }
+
+  // ---------- 木の追加（画面中央の十字で位置指定） ----------
+  function startAdd() { closeSheet(); addMode = true; document.body.classList.add("adding"); $("#addBar").hidden = false; $("#crosshair").hidden = false; }
+  function stopAdd() { addMode = false; document.body.classList.remove("adding"); $("#addBar").hidden = true; $("#crosshair").hidden = true; }
+  async function confirmAdd() {
+    const c = map.getCenter(); stopAdd();
+    const n = { id: "u-" + Date.now().toString(36), tree: null, lon: +c.lng.toFixed(7), lat: +c.lat.toFixed(7), sp: "", date: new Date().toISOString().slice(0, 10) };
+    await NoteStore.put(n); notes.set(n.id, n); refreshNotes(); openCustom(n);
+    toast("地点を追加しました。樹種やメモを入力して保存してください");
+  }
+
+  // ---------- 現在地 ----------
+  function initLocate() {
+    const btn = $("#locBtn");
+    btn.onclick = () => {
+      if (!("geolocation" in navigator)) { toast("この端末では位置情報を利用できません"); return; }
+      if (location.protocol !== "https:" && location.hostname !== "localhost") toast("現在地の表示には https での公開が必要です", 4000);
+      btn.classList.add("busy");
+      if (!geo.trigger()) { btn.classList.remove("busy"); }
+    };
+    geo.on("geolocate", (p) => {
+      const first = !userLoc;
+      userLoc = [p.coords.longitude, p.coords.latitude];
+      btn.classList.remove("busy"); btn.classList.add("active");
+      if (first) toast("現在地を表示しました。「一覧」で近い木から確認できます", 3500);
+      if (pane === "list") renderList();
+    });
+    geo.on("trackuserlocationend", () => btn.classList.remove("active"));
+    geo.on("trackuserlocationstart", () => btn.classList.add("active"));
+    geo.on("error", (e) => {
+      btn.classList.remove("busy", "active");
+      toast(e.code === 1 ? "位置情報の利用が許可されていません。端末やブラウザの設定で許可してください" : "現在地を取得できませんでした", 4500);
+    });
+    geo.on("outofmaxbounds", () => toast("現在地が地図の範囲外です"));
+  }
+
+  // ---------- UI ----------
+  function toast(msg, ms = 2600) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => { t.hidden = true; }, ms); }
+  const readNum = (id) => { const v = $(id).value; return v === "" ? null : +v; };
+
+  function fillSelect(id, dict, byCount) {
+    const idx = dict.map((_, k) => k);
+    if (byCount) { const c = new Map(); C[id].forEach((v) => c.set(v, (c.get(v) || 0) + 1)); idx.sort((a, b) => (c.get(b) || 0) - (c.get(a) || 0)); }
+    else idx.sort((a, b) => dict[a].localeCompare(dict[b], "ja"));
+    $("#" + id).insertAdjacentHTML("beforeend", idx.map((k) => `<option value="${k}">${esc(dict[k])}</option>`).join(""));
+  }
+
+  function initUI() {
+    fillSelect("ward", D.ward); fillSelect("type", D.type, true); fillSelect("route", D.route);
+    $("#catSeg").insertAdjacentHTML("beforeend", D.cat.map((c, k) => `<button data-v="${k}">${esc(c)}</button>`).join(""));
+    C.sp.forEach((v) => spCount.set(v, (spCount.get(v) || 0) + 1));
+    topSpecies = [...spCount.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);
+    $("#spList").innerHTML = topSpecies.map((k) => `<option value="${esc(D.sp[k])}">${fmt(spCount.get(k))}本</option>`).join("");
+    $("#sourceText").textContent = CFG.sourceText + "。";
+    const r = repo();
+    if (r) $("#issuesLink").href = `https://github.com/${r}/issues?q=label%3A${encodeURIComponent(CFG.issueLabel)}`; else $("#issuesLink").hidden = true;
+
+    // 検索バー
+    const qInput = $("#q");
+    const qApply = debounce(() => { F.q = qInput.value; applyFilters(); }, 250);
+    qInput.addEventListener("input", () => { $("#qClear").hidden = !qInput.value; qApply(); });
+    qInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { qInput.blur(); F.q = qInput.value; applyFilters(); fitResults(true); } });
+    $("#qClear").onclick = () => { qInput.value = ""; $("#qClear").hidden = true; F.q = ""; applyFilters(); };
+    $("#filterBtn").onclick = () => pane === "filter" ? closeSheet() : openSheet("filter");
+
+    // チップ
+    $("#chiprow").onclick = (e) => {
+      const b = e.target.closest(".qchip"); if (!b) return;
+      if (b.dataset.sp != null) { F.sp.add(+b.dataset.sp); applyFilters(); fitResults(true); return; }
+      const k = b.dataset.off;
+      if (k === "sp") F.sp.delete(+b.dataset.val);
+      else if (k === "h") { F.hMin = F.hMax = null; } else if (k === "g") { F.gMin = F.gMax = null; }
+      else if (k === "onlyNoted") F.onlyNoted = false; else F[k] = "";
+      applyFilters(); if (pane === "filter") syncFilterForm();
+    };
+
+    // 絞り込みフォーム
+    $("#spInput").addEventListener("change", (e) => {
+      const k = D.sp.indexOf(toKata(e.target.value.trim()));
+      if (k >= 0) { F.sp.add(k); e.target.value = ""; syncFilterForm(); applyFilters(); } else if (e.target.value.trim()) toast("該当する樹種がありません");
+    });
+    $("#spChips").onclick = (e) => { const k = e.target.dataset.rm; if (k != null) { F.sp.delete(+k); syncFilterForm(); applyFilters(); } };
+    $("#catSeg").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; F.cat = b.dataset.v; syncFilterForm(); applyFilters(); };
+    for (const k of ["ward", "type", "route"]) $("#" + k).onchange = (e) => { F[k] = e.target.value; applyFilters(); };
+    const numChange = debounce(() => { F.hMin = readNum("#hMin"); F.hMax = readNum("#hMax"); F.gMin = readNum("#gMin"); F.gMax = readNum("#gMax"); applyFilters(); }, 300);
+    for (const id of ["#hMin", "#hMax", "#gMin", "#gMax"]) $(id).addEventListener("input", numChange);
+    $("#onlyNoted").onchange = (e) => { F.onlyNoted = e.target.checked; applyFilters(); };
+    $("#resetBtn").onclick = () => { Object.assign(F, { sp: new Set(), ward: "", cat: "", type: "", route: "", hMin: null, hMax: null, gMin: null, gMax: null, onlyNoted: false }); syncFilterForm(); applyFilters(); };
+    $("#applyBtn").onclick = () => { closeSheet(); fitResults(true); };
+
+    // ナビ・シート
+    $$(".bottomnav button").forEach((b) => b.onclick = () => pane === b.dataset.pane ? closeSheet() : openSheet(b.dataset.pane));
+    $("#sheetClose").onclick = closeSheet;
+    $("#sheetSize").onclick = () => setFull(!$("#sheet").classList.contains("full"));
+    initSheetDrag();
+
+    // 一覧
+    $("#resultList").onclick = (e) => { const b = e.target.closest("[data-tree]"); if (b) selectTree(+b.dataset.tree, true); };
+    $("#fitBtn").onclick = () => fitResults(false);
+    $("#csvBtn").onclick = exportResults;
+    $("#noteList").onclick = (e) => {
+      const b = e.target.closest("[data-note]"); if (!b) return;
+      const n = notes.get(b.dataset.note); if (!n) return;
+      if (n.tree != null) selectTree(n.tree, true); else { openCustom(n); flyToTree(n.lon, n.lat); }
+    };
+    $("#reportList").onclick = (e) => {
+      const b = e.target.closest("[data-rep]"); if (!b) return;
+      const r = reports[+b.dataset.rep];
+      if (r.tree_id != null) selectTree(r.tree_id, true); else { openReport(r); flyToTree(r.lon, r.lat); }
+    };
+    // 統計
+    $("#statsScope").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; $$("#statsScope button").forEach((x) => x.classList.toggle("on", x === b)); renderStats(); };
+    $("#statsBody").onclick = (e) => {
+      const b = e.target.closest(".bar"); if (!b) return;
+      if (b.dataset.sp != null) F.sp = new Set([+b.dataset.sp]);
+      if (b.dataset.ward != null) F.ward = b.dataset.ward;
+      applyFilters(); toast(`${fmt(matchCount)} 本に絞り込みました`);
+    };
+    // マイメモ
+    $("#expJson").onclick = () => exportNotes("json"); $("#expGeo").onclick = () => exportNotes("geo"); $("#expCsv").onclick = () => exportNotes("csv");
+    $("#impJson").onchange = (e) => { if (e.target.files[0]) importNotes(e.target.files[0]); e.target.value = ""; };
+    $("#addPointBtn").onclick = startAdd; $("#addOk").onclick = confirmAdd; $("#addCancel").onclick = stopAdd;
+
+    // 表示設定
+    $("#layerBtn").onclick = (e) => { e.stopPropagation(); $("#layerPop").hidden = !$("#layerPop").hidden; };
+    $$(".bm").forEach((b) => b.onclick = () => {
+      $$(".bm").forEach((x) => x.classList.toggle("on", x === b));
+      ["pale", "std", "photo", "osm"].forEach((k) => map.setLayoutProperty("base-" + k, "visibility", k === b.dataset.bm ? "visible" : "none"));
+    });
+    $$(".cm").forEach((b) => b.onclick = () => { setColorMode(b.dataset.cm); renderChipRow(); });
+    document.addEventListener("click", (e) => { if (!e.target.closest("#layerPop, #layerBtn")) $("#layerPop").hidden = true; });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (addMode) stopAdd(); else closeSheet(); } });
+
+    map.on("moveend", debounce(() => { if (pane === "list") renderList(); if (pane === "stats" && $("#statsScope .on").dataset.v === "view") renderStats(); }, 200));
+    initLocate();
+  }
+
+  function fitResults(quiet) {
+    if (!matchCount) { toast("該当する木がありません"); return; }
+    if (matchCount === N) { if (!quiet) map.flyTo({ center: CFG.center, zoom: CFG.zoom }); return; }
+    let x0 = 180, x1 = -180, y0 = 90, y1 = -90;
+    for (let i = 0; i < N; i++) if (mask[i]) { const x = C.x[i], y = C.y[i]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    const sheetOpen = !$("#sheet").hidden;
+    const pad = isWide() ? { top: 90, bottom: 60, left: sheetOpen ? 440 : 60, right: 80 } : { top: 130, bottom: sheetOpen ? innerHeight * .55 : 140, left: 30, right: 70 };
+    map.fitBounds([[x0, y0], [x1, y1]], { padding: pad, maxZoom: 17, duration: 900 });
+    toast(`${fmt(matchCount)} 本が該当`);
+  }
+
+  function renderReportList() {
+    const s = reports.map((r, k) => [r, k]).sort((a, b) => (b[0].created || "").localeCompare(a[0].created || ""));
+    $("#reportList").innerHTML = s.length ? s.map(([r, k]) => `<li><button class="item" data-rep="${k}"><span class="avatar" style="background:${r.state === "open" ? "#d32f2f" : "#9e9e9e"}">${ic("chat")}</span>
+      <span class="item-txt"><span class="item-main">${esc(r.type || "報告")}</span><span class="item-sub">${r.tree_id != null ? esc(D.sp[C.sp[r.tree_id]]) + "・" : ""}${esc(r.date || (r.created || "").slice(0, 10))}　${esc((r.details || "").slice(0, 40))}</span></span>
+      <span class="item-end">${r.state === "open" ? '<span class="tag red">受付中</span>' : '<span class="tag gray">終了</span>'}</span></button></li>`).join("")
+      : `<li class="empty">${ic("chat")}まだ報告はありません。</li>`;
+  }
+
+  // ---------- 起動 ----------
+  (async function main() {
+    paintIcons();
+    try {
+      await ensureMapLib();
+      const ready = createMap();
+      const j = await fetchFirst(CFG.treesUrls);
+      D = j.dict; C = j.cols; N = j.count; mask = new Uint8Array(N).fill(1); matchCount = N;
+      await ready;
+      try {
+        const rj = await fetchFirst(CFG.reportsUrls, { cache: "no-cache" });
+        reports = (Array.isArray(rj) ? rj : rj.reports || []).map((r) => {
+          const t = Number.isInteger(r.tree_id) && r.tree_id >= 0 && r.tree_id < N ? r.tree_id : null;
+          return { ...r, tree_id: t, lon: t != null ? C.x[t] : r.lon, lat: t != null ? C.y[t] : r.lat };
+        }).filter((r) => isFinite(r.lon) && isFinite(r.lat));
+      } catch { /* 報告なし */ }
+      for (const n of await NoteStore.all()) notes.set(n.id, n);
+      addLayers(); initUI(); refreshNotes(); renderReportList(); applyFilters();
+      const t = hashTree();
+      if (t != null) selectTree(t, !/(?:^#|&)map=/.test(location.hash));
+      const ld = $("#loading"); ld.style.transition = "opacity .35s"; ld.style.opacity = 0; setTimeout(() => ld.remove(), 400);
+      if (!NoteStore.isPersistent) toast("このブラウザではメモを保存できません（閉じると消えます）", 5000);
+    } catch (e) {
+      console.error(e);
+      $("#loadMsg").innerHTML = `読み込みに失敗しました：${esc(e.message)}<br><br>data/trees.json が index.html と同じ場所の data フォルダにあるか確認してください。`;
+      document.querySelector(".bar-load").hidden = true;
+    }
+  })();
+})();
+</script>
+</body>
+</html>
