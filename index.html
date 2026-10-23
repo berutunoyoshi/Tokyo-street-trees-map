@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <title>東京23区 街路樹マップ</title>
-<meta name="description" content="東京都23区（都道）の街路樹オープンデータ約14万本を地図で検索・閲覧し、メモや状態報告を追加できるWebアプリ">
+<meta name="description" content="東京都23区（都道）の街路樹オープンデータ約14万本を地図で検索・閲覧し、メモや写真を記録できるWebアプリ">
 <meta name="theme-color" content="#1f5c3a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231f5c3a'/%3E%3Ccircle cx='32' cy='27' r='15' fill='%238fd19e'/%3E%3Crect x='29.5' y='36' width='5' height='17' rx='2' fill='%23f3efe4'/%3E%3C/svg%3E">
@@ -155,7 +155,6 @@ textarea.inp { resize: vertical; min-height: 88px; }
 .btn.sub { background: var(--surface-2); color: var(--fg); }
 .btn.line { background: transparent; color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--line); }
 .btn.danger { background: transparent; color: var(--danger); }
-.btn.gh { background: #24292f; color: #fff; }
 .btn.block { width: 100%; }
 .btn svg.ic { width: 18px; height: 18px; }
 .btnrow { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
@@ -280,6 +279,25 @@ details.olist .item-main { font-size: 13.5px; }
 .layer-opt { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-weight: 700; font-size: 13px; margin-top: 14px; }
 .layer-opt small { display: block; font-weight: 500; color: var(--muted); font-size: 11px; }
 
+/* ===== 分布・大径木 ===== */
+.hist { margin: 0 0 12px; }
+.hist-head { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; }
+.hist-head > span:first-child { color: var(--muted); font-weight: 700; width: 3em; }
+.hist-head b { font-size: 15px; }
+.htop { margin-left: auto; font-weight: 800; color: var(--accent); font-size: 13px; }
+.hsvg { width: 100%; height: 76px; display: block; margin-top: 2px; overflow: visible; }
+.hb { fill: var(--line); }
+.hb.on { fill: var(--green-400); }
+.harrow { fill: var(--danger); }
+.hline { stroke: var(--danger); stroke-width: 1.5; stroke-dasharray: 3 2; }
+.hist-axis { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+.bigbadge { display: flex; align-items: center; gap: 8px; background: #fff4cc; color: #7a5a00; border-radius: var(--r-md); padding: 8px 12px; font-size: 12.5px; font-weight: 700; margin-bottom: 12px; }
+@media (prefers-color-scheme: dark) { .bigbadge { background: #3a3215; color: #f2d27a; } }
+.bigbadge svg.ic { width: 18px; height: 18px; }
+.seg.mini2 { display: inline-flex; padding: 2px; }
+.seg.mini2 button { padding: 4px 9px; font-size: 11.5px; }
+.rank { width: 22px; text-align: center; font-weight: 800; color: var(--muted); font-size: 12px; flex: none; }
+
 /* ===== レイヤー選択 ===== */
 .popover {
   position: fixed; z-index: 25; right: 72px; bottom: calc(var(--nav-h) + var(--safe-b) + 14px); width: min(300px, calc(100vw - 90px));
@@ -399,6 +417,7 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
     <button class="cm" data-cm="heat" style="grid-column:span 2">密度（ヒートマップ）</button>
   </div>
   <label class="layer-opt"><span>樹冠を表示<small>枝張から推定・拡大時に表示</small></span><span class="switch"><input id="canopyToggle" type="checkbox"><span></span></span></label>
+  <label class="layer-opt"><span>樹高を立体表示（3D）<small>拡大時に表示・2本指で傾き/回転</small></span><span class="switch"><input id="toggle3d" type="checkbox"><span></span></span></label>
 </div>
 
 <!-- 下部ナビ -->
@@ -407,7 +426,6 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
   <button data-pane="species"><i data-ic="leaf"></i>樹種</button>
   <button data-pane="stats"><i data-ic="chart"></i>分析</button>
   <button data-pane="notes"><i data-ic="bookmark"></i>マイメモ<span id="noteCnt" class="cnt" hidden></span></button>
-  <button data-pane="reports"><i data-ic="chat"></i>報告</button>
   <button data-pane="about"><i data-ic="info"></i>情報</button>
 </nav>
 
@@ -478,7 +496,7 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
 
     <!-- 統計 -->
     <div class="pane" id="pane-stats">
-      <div class="segscroll" id="anaTab" style="margin-top:0"><button data-t="sum" class="on">概要</button><button data-t="co2">CO2・樹冠</button></div>
+      <div class="segscroll" id="anaTab" style="margin-top:0"><button data-t="sum" class="on">概要</button><button data-t="big">大径木・高木</button><button data-t="co2">CO2・樹冠</button></div>
       <div class="seg" id="statsScope" style="margin-bottom:12px"><button data-v="all" class="on">絞り込み結果全体</button><button data-v="view">地図の表示範囲</button></div>
       <div id="statsBody"></div>
     </div>
@@ -497,12 +515,6 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
       </div>
     </div>
 
-    <!-- みんなの報告 -->
-    <div class="pane" id="pane-reports">
-      <p class="muted small" style="margin-top:0">GitHub Issue で投稿された報告です。木を選んで「報告する」から投稿できます。</p>
-      <ol id="reportList" class="list"></ol>
-      <a id="issuesLink" class="btn line block" target="_blank" rel="noopener" style="margin-top:10px">GitHubで報告をすべて見る</a>
-    </div>
 
     <!-- 情報 -->
     <div class="pane prose" id="pane-about">
@@ -513,7 +525,6 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
         <li>上の検索バーや樹種ボタン、<b>絞り込み</b>ボタンで表示する木を絞れます。</li>
         <li>右下の <b>現在地ボタン</b> で現在地を表示し、「一覧」で近い木から順に見られます。</li>
         <li>木ごとに <b>メモ・写真・お気に入り</b> を登録できます（端末内に保存）。</li>
-        <li>枯れや倒木の恐れ、データの誤りなどは <b>「報告する」</b> から公開の報告として投稿できます。</li>
       </ul>
       <h3>出典</h3>
       <p id="sourceText"></p>
@@ -951,20 +962,17 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
  * 設定：公開するリポジトリに合わせて変更できます
  * ===================================================================== */
 window.APP_CONFIG = {
-  // GitHub リポジトリ（"ユーザー名/リポジトリ名"）。空欄なら GitHub Pages の URL から自動判定
-  githubRepo: "",
-  issueTemplate: "tree-report.yml",
-  issueLabel: "tree-report",
   center: [139.745, 35.69],
   zoom: 11,
   // データファイル（上から順に探します）
   treesUrls: ["data/trees.json", "trees.json"],
-  reportsUrls: ["data/reports.json", "reports.json"],
   sourceText: "街路樹データ：東京都「街路樹」（東京都オープンデータカタログサイト）を加工して作成",
   // CO2 の簡易推定に使う係数（form: 広=広葉樹 針=針葉樹 イ=イチョウ。ここにない形（ヤシ類など）は推定対象外）
   carbon: { formFactor: { "広": 0.5, "針": 0.45, "イ": 0.5 }, density: { "広": 0.55, "針": 0.40, "イ": 0.45 }, bef: 1.4, root: 0.25, cf: 0.5, dbhGrowthCm: 0.5 },
   // 外れ値の判定基準（上限値、樹種×区分の分布から外れた値の判定）
   outlier: { maxH: 35, maxW: 25, maxG: 600, minGroup: 20, iqrK: 3, medRatio: 3 },
+  // 大径木・高木リストの基準（同じ樹種・区分の上位1%かつ中央値の2倍以上、または幹周300cm以上）
+  bigTree: { pct: 0.99, medRatio: 2, kyoboku: 300, minGroup: 20 },
   quickSpecies: ["イチョウ", "サクラ", "ケヤキ", "ハナミズキ", "スズカケノキ", "トウカエデ", "クスノキ", "キンモクセイ", "モミジバフウ", "ユリノキ"],
 };
 
@@ -1048,28 +1056,17 @@ window.NoteStore = (function () {
 
   const CONDITIONS = ["", "健全", "要観察", "枝折れ・倒木の恐れ", "枯れ・衰弱", "病害虫", "損傷あり", "撤去済み"];
   const PHENOLOGY = ["新緑", "開花", "結実", "紅葉・黄葉", "落葉"];
-  const REPORT_TYPES = { "枝折れ・倒木の恐れ": "倒木・枝折れの恐れ", "枯れ・衰弱": "枯れ・衰弱", "病害虫": "病害虫", "損傷あり": "損傷（幹・根・支柱）", "撤去済み": "伐採・撤去されている" };
   const PALETTE = ["#2e7d32", "#f9a825", "#c2185b", "#1565c0", "#ef6c00", "#6a1b9a", "#00897b", "#8d6e63", "#d84315", "#5e35b1"];
   const CAT_COLORS = { "高木": "#2e7d32", "中木": "#8bc34a" };
-  const TITLES = { filter: "絞り込み", list: "一覧", species: "樹種一覧", spdetail: "樹種の情報", stats: "分析", notes: "マイメモ", reports: "みんなの報告", about: "このアプリについて" };
+  const TITLES = { filter: "絞り込み", list: "一覧", species: "樹種一覧", spdetail: "樹種の情報", stats: "分析", notes: "マイメモ", about: "このアプリについて" };
 
   // ---------- 状態 ----------
   let D, C, N, mask, matchCount = 0;
   let selected = null, pane = null, colorMode = "cat", userLoc = null, addMode = false;
   let topSpecies = [], spCount = new Map();
   const notes = new Map();
-  let reports = [];
-  const F = { q: "", sp: new Set(), ward: "", cat: "", type: "", route: "", hMin: null, hMax: null, gMin: null, gMax: null, onlyNoted: false };
+  const F = { q: "", sp: new Set(), ward: "", cat: "", type: "", route: "", hMin: null, hMax: null, gMin: null, gMax: null, onlyNoted: false, big: "" };
 
-  function repo() {
-    if (CFG.githubRepo) return CFG.githubRepo;
-    const h = location.hostname;
-    if (h.endsWith(".github.io")) {
-      const first = location.pathname.split("/").filter(Boolean)[0];
-      return `${h.split(".")[0]}/${first && !first.includes(".") ? first : h}`;
-    }
-    return "";
-  }
 
   // ---------- 外部ライブラリ（CDNが落ちていたら予備から） ----------
   function ensureMapLib() {
@@ -1098,7 +1095,7 @@ window.NoteStore = (function () {
     const raster = (url, max, attr) => ({ type: "raster", tiles: [url], tileSize: 256, maxzoom: max, attribution: attr });
     map = new maplibregl.Map({
       container: "map", hash: "map", center: CFG.center, zoom: CFG.zoom, maxZoom: 19, minZoom: 8,
-      attributionControl: { compact: true }, dragRotate: false, pitchWithRotate: false, touchPitch: false,
+      attributionControl: { compact: true }, dragRotate: false, pitchWithRotate: true, touchPitch: false, maxPitch: 70,
       style: {
         version: 8,
         sources: {
@@ -1131,7 +1128,6 @@ window.NoteStore = (function () {
     return { type: "FeatureCollection", features };
   }
   const notesGeoJSON = () => ({ type: "FeatureCollection", features: [...notes.values()].filter((n) => isFinite(n.lon)).map((n) => ({ type: "Feature", geometry: { type: "Point", coordinates: [n.lon, n.lat] }, properties: { nid: n.id, fav: !!n.fav } })) });
-  const reportsGeoJSON = () => ({ type: "FeatureCollection", features: reports.map((r, k) => ({ type: "Feature", geometry: { type: "Point", coordinates: [r.lon, r.lat] }, properties: { k, open: r.state === "open" } })) });
 
   function addLayers() {
     map.addSource("trees", { type: "geojson", data: treesGeoJSON(), promoteId: "i", buffer: 32, tolerance: 0 });
@@ -1149,15 +1145,11 @@ window.NoteStore = (function () {
       "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 13, 0, 15, 1.2], "circle-stroke-color": "#ffffff" } });
     map.addLayer({ id: "trees-sel", type: "circle", source: "trees", filter: ["==", ["get", "i"], -1], paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 8, 18, 18], "circle-color": "rgba(229,57,53,.15)", "circle-stroke-width": 3, "circle-stroke-color": "#e53935" } });
-    map.addSource("reports", { type: "geojson", data: reportsGeoJSON() });
-    map.addLayer({ id: "reports", type: "circle", source: "reports", paint: {
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 4, 18, 14], "circle-color": "rgba(0,0,0,0)", "circle-stroke-width": 2.5,
-      "circle-stroke-color": ["case", ["get", "open"], "#d32f2f", "#8a8a8a"] } });
     map.addSource("mine", { type: "geojson", data: notesGeoJSON() });
     map.addLayer({ id: "mine", type: "circle", source: "mine", paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 3.5, 18, 10], "circle-color": ["case", ["get", "fav"], "#f2b705", "#ffffff"],
       "circle-stroke-width": 2.5, "circle-stroke-color": "#263238" } });
-    for (const id of ["trees", "mine", "reports"]) {
+    for (const id of ["trees", "mine"]) {
       map.on("mouseenter", id, () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", id, () => { map.getCanvas().style.cursor = ""; });
     }
@@ -1168,12 +1160,11 @@ window.NoteStore = (function () {
     if (addMode) return;
     $("#layerPop").hidden = true;
     const pad = 8, box = [[e.point.x - pad, e.point.y - pad], [e.point.x + pad, e.point.y + pad]];
-    const fs = map.queryRenderedFeatures(box, { layers: ["mine", "reports", "trees"] });
+    const fs = map.queryRenderedFeatures(box, { layers: ["mine", "trees"].concat(map.getLayer("trees3d") && map.getLayoutProperty("trees3d", "visibility") === "visible" ? ["trees3d"] : []) });
     if (!fs.length) { if (pane === "detail") closeSheet(); return; }
     // クリック位置に最も近いものを選ぶ
-    const f = fs.map((f) => { const p = map.project(f.geometry.coordinates); return [Math.hypot(p.x - e.point.x, p.y - e.point.y) - (f.layer.id === "trees" ? 0 : 3), f]; }).sort((a, b) => a[0] - b[0])[0][1];
+    const f = fs.map((f) => { const p = map.project(f.properties.i != null ? [C.x[f.properties.i], C.y[f.properties.i]] : f.geometry.coordinates); return [Math.hypot(p.x - e.point.x, p.y - e.point.y) - (f.layer.id === "trees" ? 0 : 3), f]; }).sort((a, b) => a[0] - b[0])[0][1];
     if (f.layer.id === "mine") { const n = notes.get(f.properties.nid); if (n && n.tree != null) selectTree(n.tree); else if (n) openCustom(n); }
-    else if (f.layer.id === "reports") { const r = reports[f.properties.k]; if (r.tree_id != null) selectTree(r.tree_id); else openReport(r); }
     else selectTree(f.properties.i);
   }
 
@@ -1194,6 +1185,7 @@ window.NoteStore = (function () {
     map.setLayoutProperty("heat", "visibility", m === "heat" ? "visible" : "none");
     map.setPaintProperty("trees", "circle-opacity", m === "heat" ? ["interpolate", ["linear"], ["zoom"], 14, 0, 16, .9] : .9);
     map.setPaintProperty("trees", "circle-color", colorExpr(m));
+    if (map.getLayer("trees3d")) map.setPaintProperty("trees3d", "fill-extrusion-color", colorExpr(m === "heat" ? "cat" : m));
     renderLegend();
   }
   function renderLegend() {
@@ -1206,7 +1198,7 @@ window.NoteStore = (function () {
     if (colorMode === "g") h = grad("#ffe0b2,#ffb74d,#f57c00,#8d3b00,#3e1a00", "0cm", "幹周 100cm", "400cm");
     if (colorMode === "heat") h = grad("#c5e1a5,#7cb342,#33691e,#1b3d12", "疎", "密度", "密");
     if (notes.size) h += `<span class="lg"><i class="mine"></i>メモ</span>`;
-    if (reports.length) h += `<span class="lg"><i class="ring"></i>報告</span>`;
+    if ($("#toggle3d")?.checked) h += `<span class="lg"><i style="background:#2e7d32;border-radius:2px"></i>柱の高さ＝樹高</span>`;
     if ($("#canopyToggle")?.checked) h += `<span class="lg"><i style="background:rgba(67,160,71,.35);border:1px solid #2e7d32"></i>樹冠（薄い円は推定）</span>`;
     $("#legend").innerHTML = h;
   }
@@ -1232,6 +1224,7 @@ window.NoteStore = (function () {
     if (F.hMax != null) { const v = F.hMax; parts.push(["<=", ["get", "h"], v]); tests.push((i) => (C.h[i] ?? 0) <= v); }
     if (F.gMin != null) { const v = F.gMin; parts.push([">=", ["get", "g"], v]); tests.push((i) => (C.g[i] ?? -1) >= v); }
     if (F.gMax != null) { const v = F.gMax; parts.push(["all", [">=", ["get", "g"], 0], ["<=", ["get", "g"], v]]); tests.push((i) => { const g = C.g[i] ?? -1; return g >= 0 && g <= v; }); }
+    if (F.big) { const f = F.big, ids = []; for (let i = 0; i < N; i++) if (isBig(f, i)) ids.push(i); const set = new Set(ids); parts.push(["in", ["get", "i"], ["literal", ids]]); tests.push((i) => set.has(i)); }
     if (F.onlyNoted) { const ids = [...notes.values()].filter((n) => n.tree != null).map((n) => n.tree), set = new Set(ids); parts.push(["in", ["get", "i"], ["literal", ids]]); tests.push((i) => set.has(i)); }
     return { expr: parts.length ? ["all", ...parts] : null, tests };
   }
@@ -1250,7 +1243,7 @@ window.NoteStore = (function () {
   function applyFilters() {
     const { expr, tests } = buildFilter();
     matchCount = computeMask(tests);
-    map.setFilter("trees", expr); map.setFilter("heat", expr); map.setFilter("canopy", expr);
+    map.setFilter("trees", expr); map.setFilter("heat", expr); map.setFilter("canopy", expr); if (map.getLayer("trees3d")) map.setFilter("trees3d", expr);
     $("#countPill").textContent = matchCount === N ? `${fmt(N)} 本の街路樹` : `${fmt(matchCount)} 本が該当`;
     const nf = filterCount();
     $("#fBadge").hidden = !nf; $("#fBadge").textContent = nf;
@@ -1259,7 +1252,7 @@ window.NoteStore = (function () {
     if (pane === "list") renderList();
     if (pane === "stats") renderStats();
   }
-  const filterCount = () => F.sp.size + ["ward", "cat", "type", "route"].filter((k) => F[k] !== "").length + ["hMin", "hMax", "gMin", "gMax"].filter((k) => F[k] != null).length + (F.onlyNoted ? 1 : 0);
+  const filterCount = () => F.sp.size + ["ward", "cat", "type", "route"].filter((k) => F[k] !== "").length + ["hMin", "hMax", "gMin", "gMax"].filter((k) => F[k] != null).length + (F.onlyNoted ? 1 : 0) + (F.big ? 1 : 0);
 
   function syncFilterForm() {
     $("#spChips").innerHTML = selectedStd().map((n) => `<span class="chip">${esc(n)}<button data-rm="${esc(n)}" aria-label="外す">×</button></span>`).join("");
@@ -1281,6 +1274,7 @@ window.NoteStore = (function () {
     if (F.hMin != null || F.hMax != null) on(`樹高 ${F.hMin ?? ""}〜${F.hMax ?? ""}m`, "h");
     if (F.gMin != null || F.gMax != null) on(`幹周 ${F.gMin ?? ""}〜${F.gMax ?? ""}cm`, "g");
     if (F.onlyNoted) on("メモの木", "onlyNoted");
+    if (F.big) on(F.big === "g" ? "大径木（幹周）" : "高木（樹高）", "big");
     const sel = selectedStd();
     CFG.quickSpecies.filter((n) => STD.has(n) && !sel.includes(n)).forEach((n) => {
       const r = topSpecies.indexOf(STD.get(n).idx[0]), c = colorMode === "sp" && r > -1 && r < 10 ? PALETTE[r] : "";
@@ -1403,7 +1397,6 @@ window.NoteStore = (function () {
   function openTreeDetail(i) {
     const sp = D.sp[C.sp[i]], lat = C.y[i], lon = C.x[i];
     const note = notes.get("t-" + i) || { id: "t-" + i, tree: i, lon, lat, sp };
-    const rs = reports.filter((r) => r.tree_id === i);
     openSheet("detail", "樹木の情報");
     $("#pane-detail").innerHTML = `
       <div class="hero"><span class="avatar" style="background:${treeColor(i)}">${esc(sp[0])}</span>
@@ -1412,7 +1405,6 @@ window.NoteStore = (function () {
       <div class="tiles">${tile("樹高", C.h[i], "m")}${tile("幹周", C.g[i], "cm")}${tile("枝張", C.w[i], "m")}</div>
       ${treeEstimateHTML(i)}
       ${actionsRow(note, lat, lon, true)}
-      ${rs.length ? `<div class="sec-title">みんなの報告 <span class="tag red">${rs.length}件</span></div>${rs.map(reportCard).join("")}` : ""}
       <details class="attrs"><summary>すべての属性</summary><table>
         ${row("樹木ID", "#" + i)}${row("樹種", esc(sp))}${row("区分", esc(D.cat[C.cat[i]]))}
         ${row("樹高", C.h[i] != null ? C.h[i] + " m" : null)}${row("枝張", C.w[i] != null ? C.w[i] + " m" : null)}${row("幹周", C.g[i] != null ? C.g[i] + " cm" : null)}
@@ -1420,6 +1412,7 @@ window.NoteStore = (function () {
         ${row("路線名", esc(D.route[C.route[i]]) + (C.no[i] != null ? `（整理番号 ${C.no[i]}）` : ""))}
         ${row("通称道路名", C.road[i] >= 0 ? esc(D.road[C.road[i]]) : null)}${row("緯度・経度", `${lat.toFixed(6)}, ${lon.toFixed(6)}`)}
       </table></details>
+      ${rankSectionHTML(i)}
       ${noteForm(note)}`;
     bindDetail(note);
   }
@@ -1446,19 +1439,6 @@ window.NoteStore = (function () {
     bindDetail(note);
   }
 
-  function openReport(r) {
-    openSheet("detail", "みんなの報告");
-    $("#pane-detail").innerHTML = `<p class="muted small" style="margin-top:0">樹木データにない地点の報告です。</p>${reportCard(r)}`;
-  }
-
-  function reportCard(r) {
-    const imgs = (r.images || []).filter((u) => /^https:\/\/(github\.com|user-images\.githubusercontent\.com|private-user-images\.githubusercontent\.com)\//.test(u));
-    return `<article class="card"><div class="card-head"><span class="tag ${r.state === "open" ? "red" : "gray"}">${r.state === "open" ? "受付中" : "終了"}</span>${esc(r.type || "報告")}</div>
-      <div class="muted small">${esc(r.date || (r.created || "").slice(0, 10))}　${esc(r.user || "")}</div>
-      ${r.details ? `<p class="pre">${esc(r.details)}</p>` : ""}
-      ${imgs.length ? `<div class="thumbs">${imgs.map((u) => `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="報告写真" loading="lazy"></a>`).join("")}</div>` : ""}
-      <a href="${esc(r.url)}" target="_blank" rel="noopener" class="small">GitHubで開く（#${esc(r.number)}）</a></article>`;
-  }
 
   function noteForm(n) {
     return `<div class="note-box" id="noteBox">
@@ -1470,8 +1450,6 @@ window.NoteStore = (function () {
       <div class="field"><span class="lbl">写真（4枚まで）</span><div id="nPhotos" class="thumbs"></div></div>
       ${n.updated ? `<p class="muted small">最終更新：${new Date(n.updated).toLocaleString("ja-JP")}</p>` : ""}
       <div class="btnrow"><button class="btn" data-act="save">メモを保存</button><button class="btn danger" data-act="del"${notes.has(n.id) ? "" : " hidden"}>削除</button></div>
-      <button class="btn gh block" data-act="issue">${ic("chat")}この木について報告する（公開）</button>
-      <p class="muted small">GitHubの公開Issueとして投稿されます（GitHubアカウントが必要）。写真は投稿画面で添付できます。</p>
     </div>`;
   }
 
@@ -1525,7 +1503,6 @@ window.NoteStore = (function () {
         await NoteStore.remove(note.id); notes.delete(note.id); refreshNotes(); toast("メモを削除しました");
         if (note.tree != null) selectTree(note.tree); else closeSheet();
       }
-      if (act === "issue") openIssue(draft());
     };
   }
 
@@ -1547,22 +1524,6 @@ window.NoteStore = (function () {
   }
   function lightbox(src) { const d = document.createElement("div"); d.className = "lightbox"; d.innerHTML = `<img src="${src}" alt="写真">`; d.onclick = () => d.remove(); document.body.appendChild(d); }
 
-  // ---------- GitHub Issue ----------
-  function openIssue(n) {
-    const r = repo();
-    if (!r) { toast("報告先のGitHubリポジトリが未設定です（index.html の githubRepo を設定）", 5000); return; }
-    const isTree = n.tree != null, sp = isTree ? D.sp[C.sp[n.tree]] : (n.sp || "不明");
-    const place = isTree ? `${D.ward[C.ward[n.tree]]} ${roadName(n.tree)}` : "";
-    const type = !isTree ? "未登録の樹木" : (REPORT_TYPES[n.condition] || ((n.phen || []).length ? "開花・紅葉など季節の情報" : "その他"));
-    const lines = [];
-    if (n.condition) lines.push("状態: " + n.condition);
-    if ((n.phen || []).length) lines.push("季節の様子: " + n.phen.join("、"));
-    if ((n.memo || "").trim()) lines.push(n.memo.trim().slice(0, 1500));
-    const p = new URLSearchParams({ template: CFG.issueTemplate, labels: CFG.issueLabel, title: `[報告] ${sp}${isTree ? " #" + n.tree : ""} ${place}`.trim(),
-      tree_id: isTree ? String(n.tree) : "", species: sp, location: `${n.lat.toFixed(6)},${n.lon.toFixed(6)}`, report_type: type,
-      observed_date: n.date || new Date().toISOString().slice(0, 10), details: lines.join("\n") });
-    window.open(`https://github.com/${r}/issues/new?${p}`, "_blank", "noopener");
-  }
 
   // ---------- マイメモ ----------
   function refreshNotes() {
@@ -1670,8 +1631,6 @@ window.NoteStore = (function () {
     topSpecies = [...spCount.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);
     $("#spList").innerHTML = [...STD.values()].sort((a, b) => b.total - a.total).map((v) => `<option value="${esc(v.name)}">${esc(v.fam)}・${fmt(v.total)}本</option>`).join("");
     $("#sourceText").textContent = CFG.sourceText + "。";
-    const r = repo();
-    if (r) $("#issuesLink").href = `https://github.com/${r}/issues?q=label%3A${encodeURIComponent(CFG.issueLabel)}`; else $("#issuesLink").hidden = true;
 
     // 検索バー
     const qInput = $("#q");
@@ -1688,7 +1647,7 @@ window.NoteStore = (function () {
       const k = b.dataset.off;
       if (k === "std") removeStd(b.dataset.val);
       else if (k === "h") { F.hMin = F.hMax = null; } else if (k === "g") { F.gMin = F.gMax = null; }
-      else if (k === "onlyNoted") F.onlyNoted = false; else F[k] = "";
+      else if (k === "onlyNoted") F.onlyNoted = false; else if (k === "big") F.big = ""; else F[k] = "";
       applyFilters(); if (pane === "filter") syncFilterForm();
     };
 
@@ -1703,7 +1662,7 @@ window.NoteStore = (function () {
     const numChange = debounce(() => { F.hMin = readNum("#hMin"); F.hMax = readNum("#hMax"); F.gMin = readNum("#gMin"); F.gMax = readNum("#gMax"); applyFilters(); }, 300);
     for (const id of ["#hMin", "#hMax", "#gMin", "#gMax"]) $(id).addEventListener("input", numChange);
     $("#onlyNoted").onchange = (e) => { F.onlyNoted = e.target.checked; applyFilters(); };
-    $("#resetBtn").onclick = () => { Object.assign(F, { sp: new Set(), ward: "", cat: "", type: "", route: "", hMin: null, hMax: null, gMin: null, gMax: null, onlyNoted: false }); syncFilterForm(); applyFilters(); };
+    $("#resetBtn").onclick = () => { Object.assign(F, { sp: new Set(), ward: "", cat: "", type: "", route: "", hMin: null, hMax: null, gMin: null, gMax: null, onlyNoted: false, big: "" }); syncFilterForm(); applyFilters(); };
     $("#applyBtn").onclick = () => { closeSheet(); fitResults(true); };
 
     // ナビ・シート
@@ -1720,11 +1679,6 @@ window.NoteStore = (function () {
       const b = e.target.closest("[data-note]"); if (!b) return;
       const n = notes.get(b.dataset.note); if (!n) return;
       if (n.tree != null) selectTree(n.tree, true); else { openCustom(n); flyToTree(n.lon, n.lat); }
-    };
-    $("#reportList").onclick = (e) => {
-      const b = e.target.closest("[data-rep]"); if (!b) return;
-      const r = reports[+b.dataset.rep];
-      if (r.tree_id != null) selectTree(r.tree_id, true); else { openReport(r); flyToTree(r.lon, r.lat); }
     };
     // 統計
     $("#statsScope").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; $$("#statsScope button").forEach((x) => x.classList.toggle("on", x === b)); renderStats(); };
@@ -1766,13 +1720,6 @@ window.NoteStore = (function () {
     toast(`${fmt(matchCount)} 本が該当`);
   }
 
-  function renderReportList() {
-    const s = reports.map((r, k) => [r, k]).sort((a, b) => (b[0].created || "").localeCompare(a[0].created || ""));
-    $("#reportList").innerHTML = s.length ? s.map(([r, k]) => `<li><button class="item" data-rep="${k}"><span class="avatar" style="background:${r.state === "open" ? "#d32f2f" : "#9e9e9e"}">${ic("chat")}</span>
-      <span class="item-txt"><span class="item-main">${esc(r.type || "報告")}</span><span class="item-sub">${r.tree_id != null ? esc(D.sp[C.sp[r.tree_id]]) + "・" : ""}${esc(r.date || (r.created || "").slice(0, 10))}　${esc((r.details || "").slice(0, 40))}</span></span>
-      <span class="item-end">${r.state === "open" ? '<span class="tag red">受付中</span>' : '<span class="tag gray">終了</span>'}</span></button></li>`).join("")
-      : `<li class="empty">${ic("chat")}まだ報告はありません。</li>`;
-  }
 
   // ---------- 樹種の分類 ----------
   const LEAF = { "常": "常緑樹", "落": "落葉樹", "半": "半常緑樹", "-": "常緑・落葉不明" };
@@ -2042,7 +1989,7 @@ window.NoteStore = (function () {
     if (!C) return;
     const idx = scopeIdx();
     if (!idx.length) { $("#statsBody").innerHTML = `<p class="empty">${ic("chart")}該当する木がありません。</p>`; return; }
-    $("#statsBody").innerHTML = anaTab === "co2" ? co2HTML(idx) : summaryHTML(idx);
+    $("#statsBody").innerHTML = anaTab === "co2" ? co2HTML(idx) : anaTab === "big" ? bigHTML(idx) : summaryHTML(idx);
   }
 
   function summaryHTML(idx) {
@@ -2116,6 +2063,14 @@ window.NoteStore = (function () {
     $("#statsBody").addEventListener("click", (e) => {
       const t = e.target.closest("[data-tree]"); if (t) { selectTree(+t.dataset.tree, true); return; }
     });
+    $("#statsBody").addEventListener("click", (e) => {
+      const bb = e.target.closest("#bigBy button"); if (bb) { bigBy = bb.dataset.v; renderStats(); return; }
+      const bs = e.target.closest("#bigSort button"); if (bs) { bigSort = bs.dataset.v; renderStats(); return; }
+      const a = e.target.closest("[data-act]"); if (!a) return;
+      if (a.dataset.act === "bigcsv") bigCsv();
+      if (a.dataset.act === "bigonly") { F.big = bigBy; applyFilters(); closeSheet(); fitResults(true); }
+    });
+    $("#toggle3d").onchange = (e) => set3D(e.target.checked);
     $("#canopyToggle").onchange = (e) => {
       map.setLayoutProperty("canopy", "visibility", e.target.checked ? "visible" : "none");
       // 樹冠表示中は、樹冠が隠れないよう木の点を小さくする
@@ -2123,6 +2078,165 @@ window.NoteStore = (function () {
       if (e.target.checked && map.getZoom() < 17) toast("樹冠は地図を拡大すると表示されます");
       renderLegend();
     };
+  }
+
+  // =====================================================================
+  // 同じ樹種の中での位置づけ（分布・順位）
+  // =====================================================================
+  // 外れ値を除いた値の分布を「樹種（標準名）×区分」ごとに保持。本数が少ない場合は樹種全体で比較
+  const DIST = { h: new Map(), g: new Map(), w: new Map() };
+  const distCache = new Map();
+  function buildDist() {
+    for (const f of ["h", "g", "w"]) {
+      const m = DIST[f];
+      for (let i = 0; i < N; i++) {
+        const v = val(f, i); if (v == null || v <= 0) continue;
+        const std = SPI[C.sp[i]].std;
+        for (const k of [std + "|" + C.cat[i], std]) (m.get(k) || m.set(k, []).get(k)).push(v);
+      }
+      m.forEach((arr, k) => m.set(k, Float64Array.from(arr).sort()));
+    }
+  }
+  function distFor(f, i) {
+    const std = SPI[C.sp[i]].std, k1 = std + "|" + C.cat[i], a1 = DIST[f].get(k1);
+    if (a1 && a1.length >= CFG.bigTree.minGroup) return { arr: a1, key: k1, label: `${std}（${D.cat[C.cat[i]]}）` };
+    const a2 = DIST[f].get(std);
+    return a2 ? { arr: a2, key: std, label: std } : null;
+  }
+  function groupStats(f, d) {
+    const ck = f + "|" + d.key;
+    if (!distCache.has(ck)) distCache.set(ck, { med: quantile(d.arr, .5), p95: quantile(d.arr, CFG.bigTree.pct) });
+    return distCache.get(ck);
+  }
+  // v より大きい値の割合（＝上位◯%）
+  function topShare(arr, v) {
+    let lo = 0, hi = arr.length;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m] <= v) lo = m + 1; else hi = m; }
+    return (arr.length - lo) / arr.length;
+  }
+  const fmtTop = (p) => p < 0.001 ? "上位0.1%未満" : `上位${(p * 100 < 10 ? (p * 100).toFixed(1) : Math.round(p * 100))}%`;
+
+  function histSVG(f, i) {
+    const d = distFor(f, i); if (!d || d.arr.length < 5) return "";
+    const arr = d.arr, v = val(f, i), raw = C[f][i], unit = FIELD[f].unit;
+    const lo = arr[0], hi = Math.max(arr[arr.length - 1], v ?? 0), bins = 24, wbin = (hi - lo) / bins || 1;
+    const cnt = new Array(bins).fill(0);
+    for (const x of arr) cnt[Math.min(bins - 1, Math.floor((x - lo) / wbin))]++;
+    const mx = Math.max(...cnt), W = 300, H = 64, top = 18, bw = W / bins;
+    const vb = v == null ? -1 : Math.min(bins - 1, Math.floor((v - lo) / wbin));
+    const bars = cnt.map((c, k) => { const h = c ? Math.max(1.5, c / mx * (H - top)) : 0; return `<rect x="${(k * bw + .5).toFixed(1)}" y="${(H - h).toFixed(1)}" width="${(bw - 1).toFixed(1)}" height="${h.toFixed(1)}" rx="1" class="${k === vb ? "hb on" : "hb"}"/>`; }).join("");
+    const st = groupStats(f, d);
+    let arrow = "", head = "";
+    if (v != null) {
+      const x = Math.max(4, Math.min(W - 4, (v - lo) / (hi - lo || 1) * W));
+      arrow = `<path d="M${x.toFixed(1)} ${top - 2} l-5 -8 h10 Z" class="harrow"/><line x1="${x.toFixed(1)}" y1="${top - 2}" x2="${x.toFixed(1)}" y2="${H}" class="hline"/>`;
+      head = `<b>${v}${unit}</b><span class="htop">${fmtTop(topShare(arr, v))}</span>`;
+    } else head = `<b class="muted">${raw == null ? "データなし" : raw + unit + "（外れ値のため比較対象外）"}</b>`;
+    return `<div class="hist"><div class="hist-head"><span>${FIELD[f].label}</span>${head}</div>
+      <svg viewBox="0 -12 ${W} ${H + 12}" preserveAspectRatio="none" class="hsvg" role="img" aria-label="${FIELD[f].label}の分布">${bars}${arrow}</svg>
+      <div class="hist-axis"><span>${+lo.toFixed(1)}${unit}</span><span>中央値 ${+st.med.toFixed(1)}${unit}</span><span>${+hi.toFixed(1)}${unit}</span></div></div>`;
+  }
+  function rankSectionHTML(i) {
+    const d = distFor("h", i) || distFor("g", i);
+    if (!d) return "";
+    const big = bigReason(i);
+    return `<div class="sec-title">同じ樹種の中での位置 <span class="muted small">${esc(d.label)}・${fmt(d.arr.length)}本と比較</span></div>
+      ${big ? `<div class="bigbadge">${ic("tree")}${esc(big)}</div>` : ""}
+      ${histSVG("g", i)}${histSVG("h", i)}${histSVG("w", i)}
+      <p class="anote">▼がこの木の位置です。外れ値は比較から除外しています。</p>`;
+  }
+
+  // =====================================================================
+  // 大径木リスト
+  // =====================================================================
+  function isBig(f, i) {
+    const v = val(f, i); if (v == null) return false;
+    if (f === "g" && v >= CFG.bigTree.kyoboku) return true;
+    const d = distFor(f, i); if (!d || d.arr.length < CFG.bigTree.minGroup) return false;
+    const st = groupStats(f, d);
+    return v >= st.p95 && v >= st.med * CFG.bigTree.medRatio;
+  }
+  function bigReason(i) {
+    const r = [];
+    if (isBig("g", i)) r.push(val("g", i) >= CFG.bigTree.kyoboku ? "大径木（幹周300cm以上）" : "大径木");
+    if (isBig("h", i)) r.push("高木");
+    return r.length ? r.join("・") + "リストに掲載されている木です" : "";
+  }
+  let bigBy = "g", bigSort = "value";
+  function bigList(f, idx) {
+    const out = [];
+    for (const i of idx) if (isBig(f, i)) {
+      const d = distFor(f, i), v = val(f, i), med = d ? groupStats(f, d).med : null;
+      out.push({ i, v, ratio: med ? v / med : 0, top: d ? topShare(d.arr, v) : 0 });
+    }
+    return out.sort(bigSort === "ratio" ? (a, b) => b.ratio - a.ratio || b.v - a.v : (a, b) => b.v - a.v || b.ratio - a.ratio);
+  }
+  function bigHTML(idx) {
+    const f = bigBy, L = bigList(f, idx), unit = FIELD[f].unit, B = CFG.bigTree;
+    const nKyo = f === "g" ? L.filter((x) => x.v >= B.kyoboku).length : 0;
+    const nSp = new Set(L.map((x) => SPI[C.sp[x.i]].std)).size;
+    return `<div class="seg" id="bigBy" style="margin-bottom:10px"><button data-v="g" class="${f === "g" ? "on" : ""}">幹周が大きい木</button><button data-v="h" class="${f === "h" ? "on" : ""}">樹高が高い木</button></div>
+      <div class="kpis">
+        <div class="kpi"><span>該当</span><b>${fmt(L.length)}<small>本</small></b></div>
+        <div class="kpi"><span>樹種数</span><b>${fmt(nSp)}</b></div>
+        <div class="kpi"><span>${f === "g" ? "幹周300cm以上" : "最も高い木"}</span><b>${f === "g" ? fmt(nKyo) + "<small>本</small>" : (L.length ? Math.max(...L.map((x) => x.v)) + "<small>m</small>" : "-")}</b></div>
+      </div>
+      <div class="btnrow"><button class="btn" data-act="bigonly">${ic("pin")}地図でこれらだけ表示</button><button class="btn sub" data-act="bigcsv">CSV保存</button></div>
+      <div class="listhead"><span>${fmt(L.length)}本${L.length > 200 ? "（上位200本を表示）" : ""}</span>
+        <span class="seg mini2" id="bigSort"><button data-v="value" class="${bigSort === "value" ? "on" : ""}">${f === "g" ? "太い順" : "高い順"}</button><button data-v="ratio" class="${bigSort === "ratio" ? "on" : ""}">樹種内で際立つ順</button></span></div>
+      <ol class="list">${L.slice(0, 200).map((x, k) => { const sp = SPI[C.sp[x.i]].std; return `<li><button class="item" data-tree="${x.i}">
+        <span class="rank">${k + 1}</span><span class="avatar" style="background:${treeColor(x.i)}">${esc(sp[0])}</span>
+        <span class="item-txt"><span class="item-main">${esc(sp)} ${f === "g" && x.v >= B.kyoboku ? '<span class="tag red">300cm以上</span>' : ""}</span>
+        <span class="item-sub">${esc(D.ward[C.ward[x.i]])}・${esc(roadName(x.i))}</span></span>
+        <span class="item-end"><span class="sp-cnt">${x.v}${unit}</span><span class="sp-share">中央値の${x.ratio.toFixed(1)}倍</span></span></button></li>`; }).join("")
+        || `<li class="empty">${ic("tree")}この範囲には該当する木がありません。</li>`}</ol>
+      <div class="notebox"><b>掲載の基準</b><br>
+        同じ樹種・区分（高木／中木）の木と比べて、${FIELD[f].label}が上位${Math.round((1 - B.pct) * 100)}%に入り、かつ中央値の${B.medRatio}倍以上の木を掲載しています${f === "g" ? `。あわせて、幹周${B.kyoboku}cm以上の木はすべて掲載しています（環境省の巨樹・巨木林調査で使われる「地上130cmの幹周300cm以上」を参考にした目安。データ上の測定高さは不明です）` : ""}。同じ樹種・区分の本数が${B.minGroup}本未満の場合は比較の対象外です。基準は index.html の APP_CONFIG.bigTree で変更できます。</div>
+      <div class="notebox warnbox"><b>外れ値の除外について</b><br>${outlierNote()}</div>`;
+  }
+  function bigCsv() {
+    const L = bigList(bigBy, scopeIdx()), unit = FIELD[bigBy].unit;
+    if (!L.length) { toast("該当する木がありません"); return; }
+    const head = ["順位", "樹木ID", "樹種", "区分", `${FIELD[bigBy].label}(${unit})`, "中央値に対する倍率", "同じ樹種での順位", "樹高(m)", "幹周(cm)", "枝張(m)", "行政区", "路線名", "通称道路名", "経度", "緯度"];
+    const rows = L.map((x, k) => [k + 1, x.i, SPI[C.sp[x.i]].std, D.cat[C.cat[x.i]], x.v, x.ratio.toFixed(2), fmtTop(x.top), C.h[x.i], C.g[x.i], C.w[x.i], D.ward[C.ward[x.i]], D.route[C.route[x.i]], C.road[x.i] >= 0 ? D.road[C.road[x.i]] : "", C.x[x.i], C.y[x.i]]);
+    download(`big-trees-${bigBy === "g" ? "girth" : "height"}-${stamp()}.csv`, "﻿" + [head, ...rows].map((r) => r.map(csvCell).join(",")).join("\r\n"), "text/csv");
+  }
+
+  // =====================================================================
+  // 樹高の立体表示（3D）
+  // =====================================================================
+  function trees3dGeoJSON() {
+    const features = new Array(N);
+    const k = Math.cos(35.69 * Math.PI / 180) * 111320;
+    for (let i = 0; i < N; i++) {
+      let h = val("h", i);
+      if (h == null) { const d = distFor("h", i); h = d ? groupStats("h", d).med : 2; }
+      const side = Math.max(1.2, Math.min(8, CW[i] * 0.6)), dy = side / 2 / 111320, dx = side / 2 / k, x = C.x[i], y = C.y[i];
+      features[i] = { type: "Feature", geometry: { type: "Polygon", coordinates: [[[x - dx, y - dy], [x + dx, y - dy], [x + dx, y + dy], [x - dx, y + dy], [x - dx, y - dy]]] },
+        properties: { i, sp: C.sp[i], cat: C.cat[i], ward: C.ward[i], type: C.type[i], route: C.route[i], road: C.road[i], h: C.h[i] ?? 0, g: C.g[i] ?? -1, h3: Math.round(h * 10) / 10 } };
+    }
+    return { type: "FeatureCollection", features };
+  }
+  function set3D(on) {
+    if (on && !map.getSource("trees3d")) {
+      map.addSource("trees3d", { type: "geojson", data: trees3dGeoJSON(), buffer: 16, tolerance: 0 });
+      map.addLayer({ id: "trees3d", type: "fill-extrusion", source: "trees3d", minzoom: 13, layout: { visibility: "none" }, paint: {
+        "fill-extrusion-color": colorExpr(colorMode === "heat" ? "cat" : colorMode), "fill-extrusion-height": ["get", "h3"], "fill-extrusion-base": 0,
+        "fill-extrusion-opacity": 0.88, "fill-extrusion-vertical-gradient": true } }, "mine");
+      map.setFilter("trees3d", buildFilter().expr);
+    }
+    if (!map.getLayer("trees3d")) return;
+    map.setLayoutProperty("trees3d", "visibility", on ? "visible" : "none");
+    map.setLayoutProperty("trees", "visibility", on ? "none" : "visible");
+    if (on) {
+      map.dragRotate.enable(); map.touchPitch.enable(); map.touchZoomRotate.enableRotation();
+      map.easeTo({ pitch: 60, zoom: Math.max(map.getZoom(), 16.5), duration: 1000 });
+      toast("2本指で上下になぞると傾き、回すと回転します", 3500);
+    } else {
+      map.dragRotate.disable(); map.touchPitch.disable(); map.touchZoomRotate.disableRotation();
+      map.easeTo({ pitch: 0, bearing: 0, duration: 800 });
+    }
+    renderLegend();
   }
 
   // ---------- 起動 ----------
@@ -2134,16 +2248,9 @@ window.NoteStore = (function () {
       const j = await fetchFirst(CFG.treesUrls);
       D = j.dict; C = j.cols; N = j.count; mask = new Uint8Array(N).fill(1); matchCount = N;
       await ready;
-      try {
-        const rj = await fetchFirst(CFG.reportsUrls, { cache: "no-cache" });
-        reports = (Array.isArray(rj) ? rj : rj.reports || []).map((r) => {
-          const t = Number.isInteger(r.tree_id) && r.tree_id >= 0 && r.tree_id < N ? r.tree_id : null;
-          return { ...r, tree_id: t, lon: t != null ? C.x[t] : r.lon, lat: t != null ? C.y[t] : r.lat };
-        }).filter((r) => isFinite(r.lon) && isFinite(r.lat));
-      } catch { /* 報告なし */ }
       for (const n of await NoteStore.all()) notes.set(n.id, n);
-      buildSpecies(); computeQuality();
-      addLayers(); initUI(); refreshNotes(); renderReportList(); applyFilters();
+      buildSpecies(); computeQuality(); buildDist();
+      addLayers(); initUI(); refreshNotes(); applyFilters();
       const t = hashTree();
       if (t != null) selectTree(t, !/(?:^#|&)map=/.test(location.hash));
       const ld = $("#loading"); ld.style.transition = "opacity .35s"; ld.style.opacity = 0; setTimeout(() => ld.remove(), 400);
