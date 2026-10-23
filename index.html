@@ -110,6 +110,10 @@ svg.ic { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-wid
   display: flex; flex-direction: column; transition: height .28s cubic-bezier(.2,.8,.2,1), transform .28s cubic-bezier(.2,.8,.2,1);
   transform: translateY(0);
 }
+.sheet.mini { height: 68px; }
+.sheet.mini .sheet-body { overflow: hidden; }
+.sheet.mini #sheetSize { display: none; }
+body.sheet-mini .fabs, body.sheet-mini .legend { bottom: calc(68px + var(--nav-h) + var(--safe-b) + 12px) !important; }
 .sheet.full { height: calc(100% - var(--safe-t) - 70px - var(--nav-h) - var(--safe-b)); }
 .sheet.dragging { transition: none; }
 .sheet.closing { transform: translateY(calc(100% + 90px)); }
@@ -405,6 +409,26 @@ body.sheet-full .planbar, .lassoing .planbar, .adding .planbar { opacity: 0; poi
 .grid3 .inp { padding: 10px 8px; }
 @media (min-width: 900px) { .planbar { top: 120px; right: 64px; } }
 
+/* ===== 計画の範囲表示（3D・成長） ===== */
+.pvbar { display: none; position: fixed; z-index: 22; left: 10px; right: 10px; top: calc(var(--safe-t) + 10px); align-items: center; gap: 8px;
+  background: #4a148c; color: #fff; border-radius: 16px; padding: 10px 10px 10px 14px; box-shadow: var(--shadow-2); font-size: 13px; }
+.pvbar span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pvbar button { border: 0; background: rgba(255,255,255,.2); color: #fff; border-radius: 10px; padding: 8px 12px; font-weight: 700; flex: none; }
+body.planview .pvbar { display: flex; }
+body.planview .topbar, body.planview .countpill, body.planview .selbar, body.planview .planbar, body.planview #selBtn, body.planview .legend { display: none !important; }
+.pvslider { background: #f6eefa; border-radius: var(--r-md); padding: 12px 14px 8px; margin-bottom: 10px; }
+@media (prefers-color-scheme: dark) { .pvslider { background: #2a1e30; } }
+.pv-year { font-weight: 800; font-size: 18px; color: #6a1b9a; }
+#pvRange { width: 100%; accent-color: #7b1fa2; height: 28px; }
+.pv-ticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.pvcard { background: var(--surface-2); border-radius: var(--r-md); padding: 8px 12px; margin: 6px 0 10px; font-size: 13px; }
+.ctable tr.cur th, .ctable tr.cur td { background: #f3e5f5; }
+@media (prefers-color-scheme: dark) { .ctable tr.cur th, .ctable tr.cur td { background: #3a2442; } }
+.btn.pvbtn { width: 100%; background: #6a1b9a; color: #fff; }
+details.dataedit { background: #eef4fb; }
+@media (prefers-color-scheme: dark) { details.dataedit { background: #1c2733; } }
+@media (min-width: 900px) { .pvbar { left: 16px; right: auto; width: 400px; top: 16px; } }
+
 /* ===== レイヤー選択 ===== */
 .popover {
   position: fixed; z-index: 25; right: 72px; bottom: calc(var(--nav-h) + var(--safe-b) + 14px); width: min(300px, calc(100vw - 90px));
@@ -470,6 +494,7 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
   .sheet-head { padding-top: 14px; }
   body.sheet-on .fabs, body.sheet-on .legend { bottom: 34px; }
   body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body.sheet-full .chiprow { opacity: 1; pointer-events: auto; }
+  .icon-btn.mob { display: none; }
   .fabs { bottom: 34px; right: 16px; }
   .countpill { top: 118px; left: 16px; }
   body.sheet-on .countpill { left: 432px; top: 126px; }
@@ -553,6 +578,7 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
   <div class="grab" id="grab"><span></span></div>
   <div class="sheet-head" id="sheetHead">
     <h2 id="sheetTitle"></h2>
+    <button id="sheetMin" class="icon-btn mob" aria-label="下げて地図を見る"><i data-ic="mapview"></i></button>
     <button id="sheetSize" class="icon-btn" aria-label="シートの大きさを切替"><i data-ic="expand"></i></button>
     <button id="sheetClose" class="icon-btn" aria-label="閉じる"><i data-ic="x"></i></button>
   </div>
@@ -644,7 +670,9 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
         <li>上の検索バーや樹種ボタン、<b>絞り込み</b>ボタンで表示する木を絞れます。</li>
         <li>右下の <b>現在地ボタン</b> で現在地を表示し、「一覧」で近い木から順に見られます。</li>
         <li>右下の <b>選択ボタン</b> から、指で囲む・上位下位◯%・ドリル分析などで木をまとめて選び、集計・倒木影響範囲の表示・<b>台帳</b>への保存・Excel/PDF出力ができます。</li>
-        <li>選択した木から <b>計画案</b> を作ると、撤去・植え替え・サイズ変更・新規植栽（1本ずつ／並木）を仮に設定し、本数・CO2・樹冠面積・倒木影響範囲などを現況と比べられます。元のデータは変わりません。</li>
+        <li>木の詳細画面の「元データの修正・削除」と、「台帳 → データ修正」から、データの修正・削除・追加ができます（この端末に記録され、書き出して元データに反映できます）。</li>
+        <li>シートは下にドラッグするか地図ボタンで下げると、表示を残したまま地図を確認できます。</li>
+        <li>選択した木から <b>計画案</b> を作ると、撤去・植え替え・サイズ変更・新規植栽（1本ずつ／並木）を仮に設定し、本数・CO2・樹冠面積・倒木影響範囲などを現況と比べられます。「計画の範囲だけを表示」では、樹形を反映した3Dと、年数のスライダーで成長後の姿・統計を確認できます。元のデータは変わりません。</li>
         <li>木ごとに <b>メモ・写真・お気に入り</b> を登録できます（端末内に保存）。</li>
       </ul>
       <h3>出典</h3>
@@ -660,12 +688,14 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
     <div class="pane" id="pane-ledger"></div>
     <div class="pane" id="pane-plan"></div>
     <div class="pane" id="pane-planadd"></div>
+    <div class="pane" id="pane-planview"></div>
 
     <!-- 樹木の詳細 -->
     <div class="pane" id="pane-detail"></div>
   </div>
 </section>
 
+<div id="pvBar" class="pvbar"><span id="pvBarTxt"></span><button id="pvExit">編集に戻る</button></div>
 <div id="planBar" class="planbar" hidden><span id="planBarTxt"></span><button id="planOpen">比較</button><button id="planEnd" aria-label="計画案の編集を終了">終了</button></div>
 <div id="paBar" class="addbar pabar" hidden data-mode="one"><span id="paTxt"></span><button id="paOk">ここに追加</button><button id="paDone">完了</button></div>
 <div id="addBar" class="addbar" hidden><span>地図を動かして <b>＋</b> を木の位置に合わせてください</span><button id="addOk">ここに追加</button><button id="addCancel">やめる</button></div>
@@ -1107,6 +1137,17 @@ window.APP_CONFIG = {
   fall: { factor: 1.0 },
   // 計画シミュレーション：新規植栽・植え替え時の標準サイズ（植栽直後）、並木の標準間隔(m)
   plan: { newTree: { "高木": { h: 3.5, g: 20, w: 1.5 }, "中木": { h: 1.5, g: null, w: 0.8 } }, spacing: 8 },
+  // 3D表示：通常の地図で立体にする最大本数（画面中央に近い順）、計画の範囲表示で立体にする最大本数
+  tree3d: { maxTrees: 2500, maxPlanTrees: 6000 },
+  // 成長シミュレーション：毎年の基準成長量（樹高m・幹周cm・枝張m）と、樹種のデータが少ないときの上限、スライダーの最大年数
+  growth: { maxYears: 30, rate: { "高木": { h: 0.45, g: 2.5, w: 0.3 }, "中木": { h: 0.12, g: 0.8, w: 0.1 } }, max: { "高木": { h: 18, g: 200, w: 10 }, "中木": { h: 4, g: 40, w: 3 } } },
+  // 3Dの樹形（樹種名。末尾 * は前方一致）。ここにない樹種は、ヤシ類→ヤシ形、中木→株立ち形、針葉樹→円錐形、その他→卵形
+  crownShapes: {
+    "円錐形": ["イチョウ", "メタセコイア", "ヒマラヤスギ", "カイヅカイブキ", "イブキ", "ヒノキ", "サワラ", "レイランドヒノキ", "ゴールドクレスト", "コノテガシワ", "ニオイヒバ", "ヒバ", "イトスギ", "モントレーイトスギ", "アリゾナイトスギ", "モミノキ", "コロラドトウヒ", "ドイツトウヒ", "コウヤマキ", "シマナンヨウスギ", "モミジバフウ", "フウ"],
+    "盃形": ["ケヤキ", "サクラ", "ソメイヨシノ", "サトザクラ類", "ヨウコウ", "コバザクラ", "エンジュ", "イヌエンジュ", "アキニレ", "エノキ", "ムクノキ", "サルスベリ", "ネムノキ"],
+    "枝垂れ形": ["シダレ*"],
+    "球形": ["クスノキ", "ハナミズキ", "ヤマボウシ", "常緑ヤマボウシ", "クロガネモチ", "ヤマモモ", "マテバシイ", "シラカシ", "アラカシ", "スダジイ", "モッコク", "ソヨゴ", "キンモクセイ", "タブノキ", "ホルトノキ", "コブシ", "ハナカイドウ", "トチノキ", "ベニバナトチノキ"],
+  },
   // PDF・印刷に載せる樹木一覧の最大行数
   print: { maxTrees: 500 },
   quickSpecies: ["イチョウ", "サクラ", "ケヤキ", "ハナミズキ", "スズカケノキ", "トウカエデ", "クスノキ", "キンモクセイ", "モミジバフウ", "ユリノキ"],
@@ -1122,8 +1163,8 @@ window.NoteStore = (function () {
     if (p) return p;
     p = new Promise((res) => {
       try {
-        const r = indexedDB.open(DB, 3);
-        r.onupgradeneeded = () => { for (const st of [ST, "ledgers", "plans"]) if (!r.result.objectStoreNames.contains(st)) r.result.createObjectStore(st, { keyPath: "id" }); };
+        const r = indexedDB.open(DB, 4);
+        r.onupgradeneeded = () => { for (const st of [ST, "ledgers", "plans", "dataedits"]) if (!r.result.objectStoreNames.contains(st)) r.result.createObjectStore(st, { keyPath: "id" }); };
         r.onsuccess = () => res(r.result);
         r.onerror = () => { useMem = true; res(null); };
       } catch (e) { useMem = true; res(null); }
@@ -1152,6 +1193,12 @@ window.NoteStore = (function () {
       async put(L) { L.updated = new Date().toISOString(); const db = await open(); if (!db) { this.mem.set(L.id, L); return L; } await tx(db, "readwrite", (s) => s.put(L), "ledgers"); return L; },
       async remove(id) { const db = await open(); if (!db) { this.mem.delete(id); return; } await tx(db, "readwrite", (s) => s.delete(id), "ledgers"); },
     },
+    // 元データの修正
+    data: {
+      mem: null,
+      async get() { const db = await open(); if (!db) return this.mem; const all = await tx(db, "readonly", (s) => s.getAll(), "dataedits"); return all.find((x) => x.id === "main") || null; },
+      async put(doc) { const db = await open(); if (!db) { this.mem = doc; return; } await tx(db, "readwrite", (s) => s.put(doc), "dataedits"); },
+    },
     // 計画案
     plans: {
       mem: new Map(),
@@ -1163,6 +1210,7 @@ window.NoteStore = (function () {
 })();
 window.LedgerStore = window.NoteStore.ledgers;
 window.PlanStore = window.NoteStore.plans;
+window.DataStore = window.NoteStore.data;
 
 /* =====================================================================
  * アプリ本体
@@ -1208,6 +1256,8 @@ window.PlanStore = window.NoteStore.plans;
     fall: '<path d="M6 20 18 8"/><circle cx="18.5" cy="6.5" r="3"/><path d="M3 20h18"/><path d="M6 20a14 14 0 0 1 3-11" stroke-dasharray="2 2.5"/>',
     book: '<path d="M4 4h6a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4Z"/><path d="M20 4h-6a3 3 0 0 0-1 .2"/><path d="M20 4v14h-7"/>',
     sheet: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M10 3v18"/>',
+    cube: '<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/>',
+    mapview: '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/>',
     plan: '<path d="M4 20h16"/><path d="M12 20V10"/><circle cx="12" cy="7" r="4"/><path d="M17 4l3-1-1 3"/><path d="M19.5 3.5 15 8"/>',
     print: '<path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>',
   };
@@ -1218,7 +1268,7 @@ window.PlanStore = window.NoteStore.plans;
   const PHENOLOGY = ["新緑", "開花", "結実", "紅葉・黄葉", "落葉"];
   const PALETTE = ["#2e7d32", "#f9a825", "#c2185b", "#1565c0", "#ef6c00", "#6a1b9a", "#00897b", "#8d6e63", "#d84315", "#5e35b1"];
   const CAT_COLORS = { "高木": "#2e7d32", "中木": "#8bc34a" };
-  const TITLES = { filter: "絞り込み", list: "一覧", species: "樹種一覧", spdetail: "樹種の情報", stats: "分析", selection: "選択中の木", ledger: "台帳・計画案", plan: "計画案", planadd: "木を追加", notes: "マイメモ", about: "このアプリについて" };
+  const TITLES = { filter: "絞り込み", list: "一覧", species: "樹種一覧", spdetail: "樹種の情報", stats: "分析", selection: "選択中の木", ledger: "台帳・計画案", plan: "計画案", planadd: "木を追加", planview: "計画の範囲（3D・成長）", notes: "マイメモ", about: "このアプリについて" };
 
   // ---------- 状態 ----------
   let D, C, N, mask, matchCount = 0;
@@ -1319,12 +1369,13 @@ window.PlanStore = window.NoteStore.plans;
 
   function onMapClick(e) {
     if (addMode) return;
+    if (PVon) { pvClick(e); return; }
     $("#layerPop").hidden = true;
     const pad = 8, box = [[e.point.x - pad, e.point.y - pad], [e.point.x + pad, e.point.y + pad]];
     const fs = map.queryRenderedFeatures(box, { layers: ["mine", "trees"].concat(PLAN ? ["planadd"] : [], map.getLayer("trees3d") && map.getLayoutProperty("trees3d", "visibility") === "visible" ? ["trees3d"] : []) });
-    if (!fs.length) { if (pane === "detail") closeSheet(); return; }
+    if (!fs.length) { if (pane === "detail" && sheetSize() !== "mini") peekMap(); return; }
     // クリック位置に最も近いものを選ぶ
-    const f = fs.map((f) => { const p = map.project(f.properties.i != null ? [C.x[f.properties.i], C.y[f.properties.i]] : f.geometry.coordinates); return [Math.hypot(p.x - e.point.x, p.y - e.point.y) - (f.layer.id === "trees" ? 0 : 3), f]; }).sort((a, b) => a[0] - b[0])[0][1];
+    const f = fs.map((f) => { const p = map.project(f.properties.lon != null ? [f.properties.lon, f.properties.lat] : f.properties.i != null ? [C.x[f.properties.i], C.y[f.properties.i]] : f.geometry.coordinates); return [Math.hypot(p.x - e.point.x, p.y - e.point.y) - (f.layer.id === "trees" ? 0 : 3), f]; }).sort((a, b) => a[0] - b[0])[0][1];
     if (f.layer.id === "mine") { const n = notes.get(f.properties.nid); if (n && n.tree != null) selectTree(n.tree); else if (n) openCustom(n); }
     else if (f.layer.id === "planadd") openPlanAdded(f.properties.nid);
     else selectTree(f.properties.i);
@@ -1347,7 +1398,7 @@ window.PlanStore = window.NoteStore.plans;
     map.setLayoutProperty("heat", "visibility", m === "heat" ? "visible" : "none");
     map.setPaintProperty("trees", "circle-opacity", m === "heat" ? ["interpolate", ["linear"], ["zoom"], 14, 0, 16, .9] : .9);
     map.setPaintProperty("trees", "circle-color", colorExpr(m));
-    if (map.getLayer("trees3d")) map.setPaintProperty("trees3d", "fill-extrusion-color", colorExpr(m === "heat" ? "cat" : m));
+    refresh3D(); if (PVon) pvUpdate();
     renderLegend();
   }
   function renderLegend() {
@@ -1360,7 +1411,7 @@ window.PlanStore = window.NoteStore.plans;
     if (colorMode === "g") h = grad("#ffe0b2,#ffb74d,#f57c00,#8d3b00,#3e1a00", "0cm", "幹周 100cm", "400cm");
     if (colorMode === "heat") h = grad("#c5e1a5,#7cb342,#33691e,#1b3d12", "疎", "密度", "密");
     if (notes.size) h += `<span class="lg"><i class="mine"></i>メモ</span>`;
-    if (typeof fallOn !== "undefined" && fallOn) h += `<span class="lg"><i style="background:rgba(239,108,0,.3);border:1px solid #ef6c00"></i>倒木影響範囲</span>`;
+    if (typeof fallOn !== "undefined" && fallOn) h += `<span class="lg"><i style="background:rgba(239,108,0,.4);border:2px solid #d84315"></i>倒木影響範囲</span>`;
     if (SEL.ids.size) h += `<span class="lg"><i style="border:2px solid #1565c0"></i>選択中</span>`;
     if (typeof PLAN !== "undefined" && PLAN) h += `<span class="lg"><i style="background:#ddd;border:2px solid #d32f2f"></i>撤去</span><span class="lg"><i style="border:2px solid #7b1fa2"></i>植え替え</span><span class="lg"><i style="border:2px solid #ef6c00"></i>サイズ変更</span><span class="lg"><i style="background:#ba68c8;border:2px solid #4a148c"></i>新規植栽</span>`;
     if ($("#toggle3d")?.checked) h += `<span class="lg"><i style="background:#2e7d32;border-radius:2px"></i>柱の高さ＝樹高</span>`;
@@ -1373,6 +1424,7 @@ window.PlanStore = window.NoteStore.plans;
 
   function buildFilter() {
     const parts = [], tests = [];
+    if (DELIDS.length) { const del = DELIDS; parts.push(["!", ["in", ["get", "i"], ["literal", del]]]); tests.push((i) => !DEL[i]); }
     const q = toKata(F.q.trim());
     const idm = q.match(/^[#＃]\s*(\d+)$/);
     if (idm) { const id = +idm[1]; parts.push(["==", ["get", "i"], id]); tests.push((i) => i === id); }
@@ -1408,9 +1460,10 @@ window.PlanStore = window.NoteStore.plans;
   function applyFilters() {
     const { expr, tests } = buildFilter();
     matchCount = computeMask(tests);
-    map.setFilter("trees", expr); map.setFilter("heat", expr); map.setFilter("canopy", expr); if (map.getLayer("trees3d")) map.setFilter("trees3d", expr);
+    map.setFilter("trees", expr); map.setFilter("heat", expr); map.setFilter("canopy", expr); refresh3D(); if (PVon) pvUpdate();
     if (map.getLayer("fallall")) map.setFilter("fallall", expr ? ["all", expr, [">", ["get", "hz"], 0]] : [">", ["get", "hz"], 0]);
-    $("#countPill").textContent = matchCount === N ? `${fmt(N)} 本の街路樹` : `${fmt(matchCount)} 本が該当`;
+    const total = N - DELIDS.length;
+    $("#countPill").textContent = matchCount === total ? `${fmt(total)} 本の街路樹` : `${fmt(matchCount)} 本が該当`;
     const nf = filterCount();
     $("#fBadge").hidden = !nf; $("#fBadge").textContent = nf;
     $("#applyBtn").textContent = `${fmt(matchCount)} 本を表示`;
@@ -1457,6 +1510,7 @@ window.PlanStore = window.NoteStore.plans;
     $("#sheetTitle").textContent = title || TITLES[name] || "";
     const s = $("#sheet");
     s.hidden = false; s.classList.remove("closing");
+    if (sheetSize() === "mini") setSheetSize("half");
     document.body.classList.add("sheet-on");
     $("#sheetBody").scrollTop = 0;
     $("#layerPop").hidden = true;
@@ -1467,26 +1521,35 @@ window.PlanStore = window.NoteStore.plans;
     if (name === "selection") renderSelection();
     if (name === "ledger") renderLedger();
     if (name === "plan") renderPlan();
-    if (name !== "detail") clearFallOne();
+
     if (name !== "detail") clearSelection();
   }
   function closeSheet() {
     const s = $("#sheet");
     if (s.hidden) return;
-    clearFallOne();
     s.classList.add("closing");
-    document.body.classList.remove("sheet-on", "sheet-full");
+    document.body.classList.remove("sheet-on", "sheet-full", "sheet-mini");
     $$(".bottomnav button").forEach((b) => b.classList.remove("active"));
-    setTimeout(() => { if (s.classList.contains("closing")) { s.hidden = true; s.classList.remove("closing", "full"); setSizeIcon(); } }, 280);
-    if (pane === "detail") clearSelection();
+    setTimeout(() => { if (s.classList.contains("closing")) { s.hidden = true; s.classList.remove("closing", "full", "mini"); setSizeIcon(); } }, 280);
     pane = null;
   }
-  function setFull(full) {
-    $("#sheet").classList.toggle("full", full);
-    document.body.classList.toggle("sheet-full", full);
+  // シートの大きさ："half"（標準）／"full"（全画面）／"mini"（見出しだけ残して地図を見る）
+  function setSheetSize(sz) {
+    const s = $("#sheet");
+    s.classList.toggle("full", sz === "full"); s.classList.toggle("mini", sz === "mini");
+    document.body.classList.toggle("sheet-full", sz === "full"); document.body.classList.toggle("sheet-mini", sz === "mini");
     setSizeIcon();
   }
-  function setSizeIcon() { $("#sheetSize").innerHTML = ic($("#sheet").classList.contains("full") ? "shrink" : "expand"); }
+  const sheetSize = () => { const s = $("#sheet"); return s.classList.contains("full") ? "full" : s.classList.contains("mini") ? "mini" : "half"; };
+  function setFull(full) { setSheetSize(full ? "full" : "half"); }
+  // スマホでは地図の表示を確認しやすいようにシートを下げる
+  function peekMap() { if (!isWide() && !$("#sheet").hidden) setSheetSize("mini"); }
+  function setSizeIcon() {
+    const sz = sheetSize();
+    $("#sheetSize").innerHTML = ic(sz === "full" ? "shrink" : "expand");
+    $("#sheetMin").innerHTML = ic(sz === "mini" ? "expand" : "mapview");
+    $("#sheetMin").setAttribute("aria-label", sz === "mini" ? "シートを戻す" : "下げて地図を見る");
+  }
 
   // シートのドラッグ（スマホ）
   function initSheetDrag() {
@@ -1498,9 +1561,10 @@ window.PlanStore = window.NoteStore.plans;
       if (y0 == null) return;
       s.classList.remove("dragging"); s.style.height = ""; y0 = null;
       const vh = innerHeight;
-      if (Math.abs(moved) < 6) { setFull(!s.classList.contains("full")); return; }
+      const cur = sheetSize();
+      if (Math.abs(moved) < 6) { setSheetSize(cur === "half" ? "full" : "half"); return; }
       const h = h0 + moved;
-      if (h < vh * 0.3) closeSheet(); else setFull(h > vh * 0.68);
+      setSheetSize(h < vh * 0.25 ? "mini" : h > vh * 0.68 ? "full" : "half");
     };
     for (const el of [$("#grab"), $("#sheetHead")]) { el.addEventListener("pointerdown", start); el.addEventListener("pointermove", move); el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end); }
   }
@@ -1566,6 +1630,8 @@ window.PlanStore = window.NoteStore.plans;
   const row = (k, v) => v == null || v === "" ? "" : `<tr><th>${esc(k)}</th><td>${v}</td></tr>`;
 
   function openTreeDetail(i) {
+    if (typeof clearFallOne === "function" && openTreeDetail._last !== i) clearFallOne();
+    openTreeDetail._last = i;
     const sp = D.sp[C.sp[i]], lat = C.y[i], lon = C.x[i];
     const note = notes.get("t-" + i) || { id: "t-" + i, tree: i, lon, lat, sp };
     openSheet("detail", "樹木の情報");
@@ -1586,6 +1652,7 @@ window.PlanStore = window.NoteStore.plans;
         ${row("通称道路名", C.road[i] >= 0 ? esc(D.road[C.road[i]]) : null)}${row("緯度・経度", `${lat.toFixed(6)}, ${lon.toFixed(6)}`)}
       </table></details>
       ${rankSectionHTML(i)}
+      ${dataEditHTML(i)}
       ${noteForm(note)}`;
     bindDetail(note);
   }
@@ -1663,6 +1730,7 @@ window.PlanStore = window.NoteStore.plans;
       if (act === "samesp" && typeof selected === "number") { const nm = SPI[C.sp[selected]].std; F.sp = new Set(); addStd(nm); applyFilters(); toast(`「${nm}」だけを表示しています`); }
       if (act === "spinfo") { openSpeciesDetail(btn.dataset.std, "detail"); return; }
       if (act === "fallshow" && typeof selected === "number") { showFallOne(selected, $("#fallDir").value); return; }
+      if (act === "fallhide") { clearFallOne(); return; }
       if (act === "memo") $("#noteBox").scrollIntoView({ behavior: "smooth" });
       if (act === "share") share(note);
       if (act === "fav") {
@@ -1842,7 +1910,8 @@ window.PlanStore = window.NoteStore.plans;
     // ナビ・シート
     $$(".bottomnav button").forEach((b) => b.onclick = () => pane === b.dataset.pane ? closeSheet() : openSheet(b.dataset.pane));
     $("#sheetClose").onclick = closeSheet;
-    $("#sheetSize").onclick = () => setFull(!$("#sheet").classList.contains("full"));
+    $("#sheetSize").onclick = () => setSheetSize(sheetSize() === "full" ? "half" : "full");
+    $("#sheetMin").onclick = () => setSheetSize(sheetSize() === "mini" ? "half" : "mini");
     initSheetDrag();
 
     // 一覧
@@ -1879,6 +1948,7 @@ window.PlanStore = window.NoteStore.plans;
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (addMode) stopAdd(); else closeSheet(); } });
 
     initSpeciesUI(); initAnalysisUI();
+    map.on("moveend", debounce(refresh3D, 250));
     map.on("moveend", debounce(() => { if (pane === "species" && spScope === "view") renderSpecies(); if (pane === "list") renderList(); if (pane === "stats" && $("#statsScope .on").dataset.v === "view") renderStats(); }, 200));
     initLocate();
   }
@@ -1932,7 +2002,7 @@ window.PlanStore = window.NoteStore.plans;
       if (!s.note && v.note) s.note = v.note;
     });
     const hiIdx = D.cat.indexOf("高木");
-    for (let i = 0; i < N; i++) { const s = STD.get(SPI[C.sp[i]].std); s.total++; if (C.cat[i] === hiIdx) s.hi++; }
+    for (let i = 0; i < N; i++) { if (DEL && DEL[i]) continue; const s = STD.get(SPI[C.sp[i]].std); s.total++; if (C.cat[i] === hiIdx) s.hi++; }
   }
   const selectedStd = () => [...new Set([...F.sp].map((k) => SPI[k].std))];
   const addStd = (name) => STD.get(name)?.idx.forEach((k) => F.sp.add(k));
@@ -2060,7 +2130,7 @@ window.PlanStore = window.NoteStore.plans;
       const act = b.dataset.act;
       if (act === "back") { if (spBackTree != null) selectTree(spBackTree); else openSheet("species"); }
       if (act === "sp") openSpeciesDetail(b.dataset.std, "species");
-      if (act === "only") { F.sp = new Set(); addStd(name); applyFilters(); closeSheet(); fitResults(true); }
+      if (act === "only") { F.sp = new Set(); addStd(name); applyFilters(); peekMap(); fitResults(true); }
       if (act === "add") { addStd(name); applyFilters(); toast(`「${name}」を条件に追加しました`); }
     };
   }
@@ -2075,6 +2145,7 @@ window.PlanStore = window.NoteStore.plans;
 
   function computeQuality() {
     const Q = CFG.outlier;
+    qualityInfo = { h: 0, w: 0, g: 0, trees: 0 }; if (typeof maxCache !== "undefined") maxCache.clear();
     OUT = new Uint8Array(N); CW = new Float32Array(N); CWI = new Uint8Array(N);
     const fences = {};
     for (const f of ["h", "w", "g"]) {
@@ -2316,43 +2387,6 @@ window.PlanStore = window.NoteStore.plans;
   }
 
   // =====================================================================
-  // 樹高の立体表示（3D）
-  // =====================================================================
-  function trees3dGeoJSON() {
-    const features = new Array(N);
-    const k = Math.cos(35.69 * Math.PI / 180) * 111320;
-    for (let i = 0; i < N; i++) {
-      let h = val("h", i);
-      if (h == null) { const d = distFor("h", i); h = d ? groupStats("h", d).med : 2; }
-      const side = Math.max(1.2, Math.min(8, CW[i] * 0.6)), dy = side / 2 / 111320, dx = side / 2 / k, x = C.x[i], y = C.y[i];
-      features[i] = { type: "Feature", geometry: { type: "Polygon", coordinates: [[[x - dx, y - dy], [x + dx, y - dy], [x + dx, y + dy], [x - dx, y + dy], [x - dx, y - dy]]] },
-        properties: { i, sp: C.sp[i], cat: C.cat[i], ward: C.ward[i], type: C.type[i], route: C.route[i], road: C.road[i], h: C.h[i] ?? 0, g: C.g[i] ?? -1, h3: Math.round(h * 10) / 10 } };
-    }
-    return { type: "FeatureCollection", features };
-  }
-  function set3D(on) {
-    if (on && !map.getSource("trees3d")) {
-      map.addSource("trees3d", { type: "geojson", data: trees3dGeoJSON(), buffer: 16, tolerance: 0 });
-      map.addLayer({ id: "trees3d", type: "fill-extrusion", source: "trees3d", minzoom: 13, layout: { visibility: "none" }, paint: {
-        "fill-extrusion-color": colorExpr(colorMode === "heat" ? "cat" : colorMode), "fill-extrusion-height": ["get", "h3"], "fill-extrusion-base": 0,
-        "fill-extrusion-opacity": 0.88, "fill-extrusion-vertical-gradient": true } }, "mine");
-      map.setFilter("trees3d", buildFilter().expr);
-    }
-    if (!map.getLayer("trees3d")) return;
-    map.setLayoutProperty("trees3d", "visibility", on ? "visible" : "none");
-    map.setLayoutProperty("trees", "visibility", on ? "none" : "visible");
-    if (on) {
-      map.dragRotate.enable(); map.touchPitch.enable(); map.touchZoomRotate.enableRotation();
-      map.easeTo({ pitch: 60, zoom: Math.max(map.getZoom(), 16.5), duration: 1000 });
-      toast("2本指で上下になぞると傾き、回すと回転します", 3500);
-    } else {
-      map.dragRotate.disable(); map.touchPitch.disable(); map.touchZoomRotate.disableRotation();
-      map.easeTo({ pitch: 0, bearing: 0, duration: 800 });
-    }
-    renderLegend();
-  }
-
-  // =====================================================================
   // 第1段階：選択・ドリル・上位下位・倒木影響範囲・台帳・出力
   // =====================================================================
   const EMPTY_FC = { type: "FeatureCollection", features: [] };
@@ -2486,8 +2520,8 @@ window.PlanStore = window.NoteStore.plans;
     if (!ids.length) return;
     let x0 = 180, x1 = -180, y0 = 90, y1 = -90;
     for (const i of ids) { const x = C.x[i], y = C.y[i]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-    const sheetOpen = !$("#sheet").hidden;
-    const pad = isWide() ? { top: 90, bottom: 60, left: sheetOpen ? 440 : 60, right: 80 } : { top: 130, bottom: sheetOpen ? innerHeight * .55 : 140, left: 30, right: 70 };
+    const sheetOpen = !$("#sheet").hidden, mini = sheetSize() === "mini";
+    const pad = isWide() ? { top: 90, bottom: 60, left: sheetOpen ? 440 : 60, right: 80 } : { top: 180, bottom: sheetOpen ? (mini ? 160 : innerHeight * .6) : 140, left: 30, right: 70 };
     map.fitBounds([[x0, y0], [x1, y1]], { padding: pad, maxZoom: 18, duration: 900 });
   }
 
@@ -2698,7 +2732,8 @@ window.PlanStore = window.NoteStore.plans;
     map.getSource("fallone").setData({ type: "FeatureCollection", features: feats });
     const sheetH = !isWide() && !$("#sheet").hidden ? innerHeight - $("#sheet").getBoundingClientRect().top : 0;
     const R = r, b = [[C.x[i] - R / M_LON, C.y[i] - R / M_LAT], [C.x[i] + R / M_LON, C.y[i] + R / M_LAT]];
-    map.fitBounds(b, { padding: isWide() ? { top: 80, bottom: 80, left: 440, right: 80 } : { top: 130, bottom: sheetH + 20, left: 30, right: 30 }, maxZoom: 19.5, duration: 800 });
+    peekMap();
+    map.fitBounds(b, { padding: isWide() ? { top: 80, bottom: 80, left: 440, right: 80 } : { top: 180, bottom: 68 + 80, left: 30, right: 30 }, maxZoom: 19.5, duration: 800 });
   }
   const clearFallOne = () => map.getSource("fallone")?.setData(EMPTY_FC);
   function fallDetailHTML(i) {
@@ -2712,6 +2747,7 @@ window.PlanStore = window.NoteStore.plans;
       <div class="est-row"><span>範囲内のほかの街路樹</span><b>${fmt(nb)} 本</b></div>
       <div class="fallctl"><select id="fallDir" class="inp">${dirs.map(([v, l]) => `<option value="${v}">${l === "全方向" ? "倒れる方向：全方向" : l + "へ倒れた場合"}</option>`).join("")}</select>
         <button class="btn" data-act="fallshow">地図に表示</button></div>
+      <div class="btnrow" style="margin:6px 0 0"><button class="btn sub" data-act="fallhide" style="min-height:32px">表示を消す</button></div>
       <p class="anote">半径＝樹高の円を描きます。方向を選ぶと、長さ＝樹高・幅＝樹冠の直径の範囲を表示します。地形・傾き・根の状態・風は考慮しない目安です。</p></div>`;
   }
 
@@ -2756,8 +2792,9 @@ window.PlanStore = window.NoteStore.plans;
         <div class="btnrow" style="margin-top:20px"><button class="btn danger" data-act="ldel">この台帳を削除</button></div>`;
       return;
     }
-    const tabs = `<div class="seg" id="ledgerTabs" style="margin-bottom:12px"><button data-v="ledger" class="${ledgerTab === "ledger" ? "on" : ""}">植栽台帳</button><button data-v="plan" class="${ledgerTab === "plan" ? "on" : ""}">計画案</button></div>`;
+    const tabs = `<div class="seg" id="ledgerTabs" style="margin-bottom:12px"><button data-v="ledger" class="${ledgerTab === "ledger" ? "on" : ""}">植栽台帳</button><button data-v="plan" class="${ledgerTab === "plan" ? "on" : ""}">計画案</button><button data-v="data" class="${ledgerTab === "data" ? "on" : ""}">データ修正</button></div>`;
     if (ledgerTab === "plan") { el.innerHTML = tabs + plansListHTML(); return; }
+    if (ledgerTab === "data") { el.innerHTML = tabs + dataEditsListHTML(); return; }
     el.innerHTML = tabs + `<p class="muted small" style="margin-top:0">選択した木に名前を付けて保存したものです。この端末のブラウザ内に保存され、ファイルに書き出してほかの人と共有できます。</p>
       <div class="btnrow"><button class="btn" data-act="lnew"${SEL.ids.size ? "" : " disabled"}>${ic("book")}選択中の${fmt(SEL.ids.size)}本を新しい台帳に保存</button></div>
       <div class="btnrow"><label class="btn sub file-btn">台帳ファイルを読み込む<input id="lImport" type="file" accept=".json,application/json"></label></div>
@@ -2894,11 +2931,11 @@ window.PlanStore = window.NoteStore.plans;
     // 倒木影響範囲（すべての木）：半径＝樹高を実寸の円で描く（緯度35.7度でのメートル→ピクセル換算）
     map.addLayer({ id: "fallall", type: "circle", source: "trees", minzoom: 14, layout: { visibility: "none" }, filter: [">", ["get", "hz"], 0], paint: {
       "circle-radius": ["interpolate", ["exponential", 2], ["zoom"], 10, ["/", ["get", "hz"], 124.17], 20, ["/", ["get", "hz"], 0.12126]],
-      "circle-color": "rgba(239,108,0,0.07)", "circle-stroke-width": 1, "circle-stroke-color": "rgba(230,81,0,0.45)" } }, "canopy");
+      "circle-color": "rgba(239,108,0,0.17)", "circle-stroke-width": 1.6, "circle-stroke-color": "rgba(216,67,21,0.9)" } }, "canopy");
     map.addSource("fallone", { type: "geojson", data: EMPTY_FC });
-    map.addLayer({ id: "fallone-fill", type: "fill", source: "fallone", paint: { "fill-color": ["match", ["get", "kind"], "band", "#d84315", "#ef6c00"],
-      "fill-opacity": ["match", ["get", "kind"], "band", 0.35, 0.18] } }, "trees");
-    map.addLayer({ id: "fallone-line", type: "line", source: "fallone", paint: { "line-color": "#e65100", "line-width": 1.8 } }, "trees");
+    map.addLayer({ id: "fallone-fill", type: "fill", source: "fallone", paint: { "fill-color": ["match", ["get", "kind"], "band", "#bf360c", "#ef6c00"],
+      "fill-opacity": ["match", ["get", "kind"], "band", 0.55, 0.32] } }, "trees");
+    map.addLayer({ id: "fallone-line", type: "line", source: "fallone", paint: { "line-color": "#bf360c", "line-width": 2.6 } }, "trees");
   }
   async function initPhase1() {
     await loadLedgers();
@@ -2919,7 +2956,7 @@ window.PlanStore = window.NoteStore.plans;
       const act = a.dataset.act, ids = selIdx(), title = SEL.ledgerId ? ledgerName(SEL.ledgerId) : (SEL.label || "選択した街路樹");
       if (act === "selclear") setSelection([], "");
       if (act === "selonly") { F.onlySel = !F.onlySel; applyFilters(); renderSelection(); }
-      if (act === "selfit") fitIds(ids);
+      if (act === "selfit") { peekMap(); fitIds(ids); }
       if (act === "fall") setFall(!fallOn);
       if (act === "ledgersave") saveSelectionAsLedger(false);
       if (act === "ledgersavenew") saveSelectionAsLedger(true);
@@ -3040,7 +3077,7 @@ window.PlanStore = window.NoteStore.plans;
     map.setLayoutProperty("planadd-fall", "visibility", PLAN && fallOn ? "visible" : "none");
     $("#planBar").hidden = !PLAN;
     if (PLAN) $("#planBarTxt").innerHTML = `計画案：<b>${esc(PLAN.name)}</b>`;
-    renderLegend();
+    renderLegend(); refresh3D(); if (PVon) pvUpdate();
   }
   function addPlanLayers() {
     map.addLayer({ id: "trees-plan", type: "circle", source: "trees", paint: {
@@ -3057,7 +3094,7 @@ window.PlanStore = window.NoteStore.plans;
       "circle-color": "rgba(123,31,162,0.18)", "circle-stroke-width": 1, "circle-stroke-color": "rgba(123,31,162,.6)" } }, "trees");
     map.addLayer({ id: "planadd-fall", type: "circle", source: "planadd", minzoom: 14, layout: { visibility: "none" }, paint: {
       "circle-radius": ["interpolate", ["exponential", 2], ["zoom"], 10, ["/", ["get", "hz"], 124.17], 20, ["/", ["get", "hz"], 0.12126]],
-      "circle-color": "rgba(239,108,0,0.07)", "circle-stroke-width": 1, "circle-stroke-color": "rgba(230,81,0,0.45)" } }, "trees");
+      "circle-color": "rgba(239,108,0,0.17)", "circle-stroke-width": 1.6, "circle-stroke-color": "rgba(216,67,21,0.9)" } }, "trees");
     map.addLayer({ id: "planadd", type: "circle", source: "planadd", paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 2.5, 12, 3.5, 15, 6, 18, 11], "circle-color": "#ba68c8",
       "circle-stroke-width": 2, "circle-stroke-color": "#4a148c" } });
@@ -3078,7 +3115,7 @@ window.PlanStore = window.NoteStore.plans;
     PLAN = plans.find((p) => p.id === id) || null; if (!PLAN) return;
     applyPlanStates(); openSheet("plan"); fitIds(PLAN.base);
   }
-  function closePlan() { PLAN = null; applyPlanStates(); if (pane === "plan") openSheet("ledger"); toast("計画案の編集を終了しました"); }
+  function closePlan() { if (PVon) exitPlanView(); PLAN = null; applyPlanStates(); if (pane === "plan") openSheet("ledger"); toast("計画案の編集を終了しました"); }
 
   // ---- 計画案の画面 ----
   const diffCell = (a, b, fmtFn) => { const d = b - a; const cls = Math.abs(d) < 1e-9 ? "" : d > 0 ? "up" : "down"; return `<td class="d ${cls}">${Math.abs(d) < 1e-9 ? "±0" : (d > 0 ? "+" : "−") + fmtFn(Math.abs(d))}</td>`; };
@@ -3107,6 +3144,7 @@ window.PlanStore = window.NoteStore.plans;
       <div class="tablewrap"><table class="ctable"><thead><tr><th></th><th>現況</th><th>計画</th><th>差</th></tr></thead>
         <tbody>${rows.map(([l, a, b, f, u]) => `<tr><th>${l}</th><td>${f(a)}<small>${u}</small></td><td><b>${f(b)}</b><small>${u}</small></td>${diffCell(a, b, f)}</tr>`).join("")}</tbody></table></div>
       <div class="chgsum">${["remove", "replace", "modify", "add"].map((k) => `<span><i style="background:${KIND_COLOR[k]}"></i>${KIND_LABEL[k]} <b>${fmt(k === "remove" ? L.nRemove : k === "replace" ? L.nReplace : k === "modify" ? L.nModify : L.nAdd)}</b></span>`).join("")}</div>
+      <div class="btnrow"><button class="btn pvbtn" data-act="p-view">${ic("cube")}計画の範囲だけを表示（3D・成長シミュレーション）</button></div>
       <div class="sec-title">計画を編集</div>
       <div class="btnrow"><button class="btn" data-act="p-addone">${ic("plus")}木を1本ずつ追加</button><button class="btn" data-act="p-addline">${ic("plus")}並木を追加</button></div>
       <details class="attrs"><summary>樹種をまとめて植え替え・撤去</summary>
@@ -3220,6 +3258,7 @@ window.PlanStore = window.NoteStore.plans;
   const newAdd = (lon, lat) => ({ id: "n-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), lon: +lon.toFixed(7), lat: +lat.toFixed(7), std: planAddCfg.std, cat: planAddCfg.cat, h: planAddCfg.h, g: planAddCfg.g, w: planAddCfg.w });
   async function confirmPlanAdd() {
     const c = map.getCenter(), mode = $("#paBar").dataset.mode;
+    if (mode === "data") return confirmDataAdd();
     if (mode === "one") { PLAN.adds.push(newAdd(c.lng, c.lat)); await savePlan(); applyPlanStates(); toast(`追加しました（新規植栽 ${PLAN.adds.length}本）`); return; }
     if (!planLineStart) { planLineStart = [c.lng, c.lat]; map.getSource("planline").setData({ type: "FeatureCollection", features: [{ type: "Feature", geometry: { type: "Point", coordinates: planLineStart }, properties: {} }] }); updatePaBar(); return; }
     const [x0, y0] = planLineStart, x1 = c.lng, y1 = c.lat;
@@ -3337,19 +3376,20 @@ window.PlanStore = window.NoteStore.plans;
     $("#planOpen").onclick = () => openSheet("plan");
     $("#planEnd").onclick = closePlan;
     $("#paOk").onclick = confirmPlanAdd;
-    $("#paDone").onclick = () => { stopPlanAdd(); openSheet("plan"); };
+    $("#paDone").onclick = () => { const m = $("#paBar").dataset.mode; stopPlanAdd(); if (m === "data") { ledgerTab = "data"; openSheet("ledger"); } else openSheet("plan"); };
     $("#pane-plan").addEventListener("click", async (e) => {
       const t = e.target.closest("[data-tree]"); if (t) { selectTree(+t.dataset.tree, true); return; }
       const nn = e.target.closest("[data-nid]"); if (nn) { const n = PLAN.adds.find((x) => x.id === nn.dataset.nid); if (n) { openPlanAdded(n.id); flyToTree(n.lon, n.lat); } return; }
       const a = e.target.closest("[data-act]"); if (!a || a.disabled) return;
       const act = a.dataset.act;
+      if (act === "p-view") enterPlanView();
       if (act === "p-addone") openPlanAddForm("one");
       if (act === "p-addline") openPlanAddForm("line");
       if (act === "p-bulkreplace") bulk("replace");
       if (act === "p-bulkremove") bulk("remove");
       if (act === "p-bulkundo") bulk("undo");
       if (act === "p-include") { PLAN.base = [...new Set([...PLAN.base, ...SEL.ids])].sort((x, y) => x - y); await savePlan(); renderPlan(); toast(`対象範囲は${fmt(PLAN.base.length)}本になりました`); }
-      if (act === "p-fit") fitIds(PLAN.base);
+      if (act === "p-fit") { peekMap(); fitIds(PLAN.base); }
       if (act === "p-meta") { PLAN.name = $("#pName").value.trim() || PLAN.name; PLAN.memo = $("#pMemo").value; await savePlan(); applyPlanStates(); renderPlan(); toast("保存しました"); }
       if (act === "p-xlsx") exportPlanXlsx();
       if (act === "p-pdf") printPlan();
@@ -3377,6 +3417,479 @@ window.PlanStore = window.NoteStore.plans;
     });
   }
 
+  // =====================================================================
+  // 元データの修正（削除・追加・属性の修正）
+  // =====================================================================
+  // 元のデータファイル（trees.json）は書き換えず、この端末内に「修正」を記録して地図・集計に反映します。
+  // 書き出した CSV / trees.json を GitHub に上げ直すと、全員に反映されます。
+  let EDITS = { deleted: [], modified: {}, added: [], dataCount: 0 }, DEL = null, N0 = 0, DELIDS = [];
+  const dictIdx = (k, v) => { if (v == null || v === "") return -1; let i = D[k].indexOf(v); if (i < 0) { D[k].push(v); i = D[k].length - 1; } return i; };
+  function setTreeAttrs(i, m) {
+    if (m.sp) C.sp[i] = dictIdx("sp", m.sp);
+    if (m.cat) C.cat[i] = dictIdx("cat", m.cat);
+    C.h[i] = m.h ?? null; C.w[i] = m.w ?? null; C.g[i] = m.g ?? null;
+  }
+  function appendTree(a) {
+    C.sp.push(dictIdx("sp", a.sp)); C.cat.push(dictIdx("cat", a.cat)); C.h.push(a.h ?? null); C.w.push(a.w ?? null); C.g.push(a.g ?? null);
+    C.ward.push(dictIdx("ward", a.ward)); C.type.push(dictIdx("type", a.type)); C.no.push(a.no ?? null); C.route.push(dictIdx("route", a.route));
+    C.road.push(a.road ? dictIdx("road", a.road) : -1); C.x.push(a.lon); C.y.push(a.lat);
+    N++;
+  }
+  async function loadEdits() {
+    try { const e = await DataStore.get(); if (e) EDITS = { deleted: [], modified: {}, added: [], ...e }; } catch { }
+  }
+  function applyDataEdits() {
+    N0 = N;
+    if (EDITS.dataCount && EDITS.dataCount !== N0 && (EDITS.deleted.length || Object.keys(EDITS.modified).length || EDITS.added.length)) {
+      setTimeout(() => toast("元データが更新されたため、この端末の「データ修正」と位置がずれている可能性があります（台帳 → データ修正で確認してください）", 7000), 1500);
+    }
+    if (!EDITS.dataCount) EDITS.dataCount = N0;
+    for (const [k, m] of Object.entries(EDITS.modified)) { const i = +k; if (i < N0) setTreeAttrs(i, m); }
+    for (const a of EDITS.added) appendTree(a);
+    DEL = new Uint8Array(N);
+    for (const i of EDITS.deleted) if (i < N) DEL[i] = 1;
+    EDITS.added.forEach((a, k) => { if (a.deleted) DEL[N0 + k] = 1; });
+    refreshDelIds();
+  }
+  function refreshDelIds() { DELIDS = []; for (let i = 0; i < N; i++) if (DEL[i]) DELIDS.push(i); }
+  const saveEdits = () => DataStore.put({ id: "main", ...EDITS });
+  const isAdded = (i) => i >= N0;
+  const editCounts = () => ({ del: EDITS.deleted.length + EDITS.added.filter((a) => a.deleted).length, mod: Object.keys(EDITS.modified).length, add: EDITS.added.filter((a) => !a.deleted).length });
+
+  // データ修正後に、集計用の構造をまとめて作り直す
+  function softRebuild() {
+    if (mask.length !== N) mask = new Uint8Array(N).fill(1);
+    if (DEL.length !== N) { const d = new Uint8Array(N); d.set(DEL.subarray(0, Math.min(DEL.length, N))); DEL = d; }
+    buildSpecies(); computeQuality();
+    for (const f of ["h", "g", "w"]) DIST[f].clear(); distCache.clear(); buildDist(); treeGrid = null;
+    map.getSource("trees").setData(treesGeoJSON());
+    refreshDelIds(); applyFilters(); refresh3D();
+    $("#spList").innerHTML = [...STD.values()].sort((a, b) => b.total - a.total).map((v) => `<option value="${esc(v.name)}">${esc(v.fam)}・${fmt(v.total)}本</option>`).join("");
+  }
+  function nearestInfo(lon, lat) {
+    let best = -1, bd = Infinity;
+    for (let i = 0; i < N; i++) { if (DEL[i]) continue; const d = Math.hypot((C.x[i] - lon) * M_LON, (C.y[i] - lat) * M_LAT); if (d < bd) { bd = d; best = i; } }
+    if (best < 0) return { ward: "", type: "", route: "", no: null, road: "" };
+    return { ward: D.ward[C.ward[best]], type: D.type[C.type[best]], route: D.route[C.route[best]], no: C.no[best], road: C.road[best] >= 0 ? D.road[C.road[best]] : "", dist: bd };
+  }
+
+  // ---- 木の詳細画面：データの修正 ----
+  function dataEditHTML(i) {
+    const m = EDITS.modified[i], added = isAdded(i);
+    const v = (k) => C[k][i] ?? "";
+    return `<details class="attrs dataedit"${m || added ? " open" : ""}><summary>元データの修正・削除</summary>
+      ${added ? `<p class="small" style="margin:0 0 8px"><span class="tag" style="background:#e3f2fd;color:#1565c0">この端末で追加した木</span></p>` : m ? `<p class="small" style="margin:0 0 8px"><span class="tag" style="background:#e3f2fd;color:#1565c0">修正済み</span> 元の値：${esc(m.orig.sp)}・${esc(m.orig.cat)}・樹高${m.orig.h ?? "-"}m・枝張${m.orig.w ?? "-"}m・幹周${m.orig.g ?? "-"}cm</p>` : ""}
+      <label class="field"><span class="lbl">樹種</span><input id="deSp" class="inp" list="spList" value="${esc(D.sp[C.sp[i]])}"></label>
+      <div class="field"><span class="lbl">区分</span><div class="seg" id="deCat">${D.cat.map((c) => `<button data-v="${esc(c)}" class="${c === D.cat[C.cat[i]] ? "on" : ""}">${esc(c)}</button>`).join("")}</div></div>
+      <div class="grid3"><label class="field"><span class="lbl">樹高(m)</span><input id="deH" class="inp" type="number" step="0.1" inputmode="decimal" value="${v("h")}"></label>
+        <label class="field"><span class="lbl">枝張(m)</span><input id="deW" class="inp" type="number" step="0.1" inputmode="decimal" value="${v("w")}"></label>
+        <label class="field"><span class="lbl">幹周(cm)</span><input id="deG" class="inp" type="number" step="1" inputmode="numeric" value="${v("g")}"></label></div>
+      <div class="btnrow"><button class="btn sub" data-act="de-save">修正を保存</button>${m ? `<button class="btn sub" data-act="de-undo">修正を取り消す</button>` : ""}</div>
+      <div class="btnrow"><button class="btn danger" data-act="de-del">この木を元データから削除</button></div>
+      <p class="anote">修正・削除はこの端末に記録され、地図とすべての集計に反映されます。全員に反映するには「台帳 → データ修正」から修正済みデータを書き出し、GitHubのデータを差し替えてください。</p></details>`;
+  }
+  async function dataEditAction(act) {
+    const i = selected; if (typeof i !== "number") return;
+    if (act === "de-save") {
+      const sp = toKata(($("#deSp").value || "").trim()); if (!sp) { toast("樹種を入力してください"); return; }
+      const rec = { sp, cat: $("#deCat .on")?.dataset.v || D.cat[C.cat[i]], h: numOrNull("#deH"), w: numOrNull("#deW"), g: numOrNull("#deG") };
+      if (isAdded(i)) { Object.assign(EDITS.added[i - N0], rec); }
+      else { const prev = EDITS.modified[i]; EDITS.modified[i] = { ...rec, orig: prev ? prev.orig : { sp: D.sp[C.sp[i]], cat: D.cat[C.cat[i]], h: C.h[i], w: C.w[i], g: C.g[i] } }; }
+      setTreeAttrs(i, rec); await saveEdits(); softRebuild(); selectTree(i); toast("元データの修正を保存しました");
+    }
+    if (act === "de-undo") {
+      const m = EDITS.modified[i]; if (!m) return;
+      setTreeAttrs(i, m.orig); delete EDITS.modified[i]; await saveEdits(); softRebuild(); selectTree(i); toast("修正を取り消しました");
+    }
+    if (act === "de-del") {
+      if (!confirm("この木を元データから削除しますか？（この端末の修正として記録され、あとで取り消せます）")) return;
+      if (isAdded(i)) EDITS.added[i - N0].deleted = true; else if (!EDITS.deleted.includes(i)) EDITS.deleted.push(i);
+      DEL[i] = 1; refreshDelIds(); await saveEdits();
+      if (SEL.ids.has(i)) setSelection([...SEL.ids].filter((x) => x !== i), SEL.label, { ledgerId: SEL.ledgerId, area: SEL.area });
+      buildSpecies(); applyFilters(); refresh3D(); clearSelection(); closeSheet(); toast("元データから削除しました（台帳 → データ修正で取り消せます）", 4000);
+    }
+  }
+
+  // ---- 台帳画面「データ修正」タブ ----
+  function dataEditsListHTML() {
+    const c = editCounts();
+    const items = [
+      ...EDITS.deleted.map((i) => ({ k: "del", i, text: `${esc(D.sp[C.sp[i]])}　#${i}・${esc(D.ward[C.ward[i]])}` })),
+      ...EDITS.added.map((a, k) => a.deleted ? { k: "del", i: N0 + k, text: `${esc(a.sp)}（追加した木）　#${N0 + k}` } : null).filter(Boolean),
+      ...Object.keys(EDITS.modified).map((k) => ({ k: "mod", i: +k, text: `${esc(EDITS.modified[k].orig.sp)} → ${esc(D.sp[C.sp[+k]])}　#${k}` })),
+      ...EDITS.added.map((a, k) => a.deleted ? null : { k: "add", i: N0 + k, text: `${esc(a.sp)}　#${N0 + k}・${esc(a.ward || "")}` }).filter(Boolean),
+    ];
+    const label = { del: "削除", mod: "修正", add: "追加" }, color = { del: "#d32f2f", mod: "#1565c0", add: "#2e7d32" };
+    return `<p class="muted small" style="margin-top:0">元のデータファイルは書き換えず、この端末で行った修正（削除・追加・属性の修正）を記録して、地図とすべての集計に反映しています。</p>
+      <div class="chgsum"><span><i style="background:${color.del}"></i>削除 <b>${fmt(c.del)}</b></span><span><i style="background:${color.mod}"></i>修正 <b>${fmt(c.mod)}</b></span><span><i style="background:${color.add}"></i>追加 <b>${fmt(c.add)}</b></span></div>
+      <div class="btnrow"><button class="btn" data-act="de-addstart">${ic("plus")}元データに木を追加</button></div>
+      <ol class="list">${items.slice(0, 300).map((x) => `<li><div class="drow"><button class="dmain" data-tree="${x.i}" style="grid-template-columns:1fr"><span class="dname"><span class="tag" style="background:${color[x.k]};color:#fff">${label[x.k]}</span> ${x.text}</span></button>
+        <button class="dsel" data-deundo="${x.k}:${x.i}" aria-label="取り消す" style="color:var(--muted);width:auto;padding:0 10px;font-size:12px;font-weight:700">取消</button></div></li>`).join("")
+        || `<li class="empty">${ic("tree")}修正はまだありません。<br>木の詳細画面の「元データの修正・削除」から修正できます。</li>`}</ol>
+      <div class="sec-title">書き出し（元データへの反映用）</div>
+      <div class="btnrow"><button class="btn sub" data-act="de-csv">修正を反映した全データ（CSV）</button><button class="btn sub" data-act="de-json">trees.json（修正反映済み）</button></div>
+      <div class="btnrow"><button class="btn sub" data-act="de-list">修正の一覧（CSV）</button><button class="btn sub" data-act="de-export">修正ファイル書き出し</button>
+        <label class="btn sub file-btn">修正ファイル読み込み<input id="deImport" type="file" accept=".json,application/json"></label></div>
+      <div class="btnrow"><button class="btn danger" data-act="de-clear"${c.del + c.mod + c.add ? "" : " disabled"}>すべての修正を取り消す</button></div>
+      <div class="notebox"><b>全員に反映するには</b><br>① 「trees.json（修正反映済み）」を書き出し、② GitHub の <code>data/trees.json</code> をそのファイルで上書きします。または「修正を反映した全データ（CSV）」を <code>raw/</code> に置いて <code>scripts/convert.py</code> で変換します。<br>
+        差し替えると樹木IDが振り直されるため、各端末の修正・マイメモ・台帳・計画案の樹木IDとの対応がずれます。差し替えた後は、各端末で「すべての修正を取り消す」を行ってください。</div>`;
+  }
+  function exportFullCsv() {
+    const head = ["樹種", "区分", "樹高(m)", "枝張(m)", "幹周(cm）", "行政区", "種別", "整理番号", "路線名", "通称道路名", "経度", "緯度"], out = [head.join(",")];
+    for (let i = 0; i < N; i++) if (!DEL[i]) out.push([D.sp[C.sp[i]], D.cat[C.cat[i]], C.h[i], C.w[i], C.g[i], D.ward[C.ward[i]], D.type[C.type[i]], C.no[i], D.route[C.route[i]], C.road[i] >= 0 ? D.road[C.road[i]] : "", C.x[i], C.y[i]].map(csvCell).join(","));
+    download(`tokyo_gairoju_修正反映-${stamp()}.csv`, "﻿" + out.join("\r\n"), "text/csv");
+  }
+  function exportTreesJson() {
+    const keys = ["sp", "cat", "ward", "type", "route", "road"], dict = {}, look = {}, cols = {};
+    for (const k of keys) { dict[k] = []; look[k] = new Map(); }
+    for (const k of ["sp", "cat", "h", "w", "g", "ward", "type", "no", "route", "road", "x", "y"]) cols[k] = [];
+    for (let i = 0; i < N; i++) {
+      if (DEL[i]) continue;
+      for (const k of keys) {
+        const v = C[k][i] >= 0 ? D[k][C[k][i]] : null;
+        if (v == null) { cols[k].push(-1); continue; }
+        if (!look[k].has(v)) { look[k].set(v, dict[k].length); dict[k].push(v); }
+        cols[k].push(look[k].get(v));
+      }
+      for (const k of ["h", "w", "g", "no", "x", "y"]) cols[k].push(C[k][i]);
+    }
+    download("trees.json", JSON.stringify({ version: 1, generated: new Date().toISOString().slice(0, 10), count: cols.x.length, dict, cols }), "application/json");
+  }
+  function exportEditList() {
+    const head = ["種類", "樹木ID", "樹種（修正後）", "区分", "樹高(m)", "枝張(m)", "幹周(cm)", "元の樹種", "元の樹高(m)", "元の枝張(m)", "元の幹周(cm)", "行政区", "路線名", "経度", "緯度"], rows = [head];
+    for (const i of EDITS.deleted) rows.push(["削除", i, "", "", "", "", "", D.sp[C.sp[i]], C.h[i], C.w[i], C.g[i], D.ward[C.ward[i]], D.route[C.route[i]], C.x[i], C.y[i]]);
+    for (const [k, m] of Object.entries(EDITS.modified)) { const i = +k; rows.push(["修正", i, D.sp[C.sp[i]], D.cat[C.cat[i]], C.h[i], C.w[i], C.g[i], m.orig.sp, m.orig.h, m.orig.w, m.orig.g, D.ward[C.ward[i]], D.route[C.route[i]], C.x[i], C.y[i]]); }
+    EDITS.added.forEach((a, k) => { if (!a.deleted) rows.push(["追加", N0 + k, a.sp, a.cat, a.h, a.w, a.g, "", "", "", "", a.ward, a.route, a.lon, a.lat]); });
+    download(`データ修正一覧-${stamp()}.csv`, "﻿" + rows.map((r) => r.map(csvCell).join(",")).join("\r\n"), "text/csv");
+  }
+  async function deUndo(kind, i) {
+    if (kind === "del") { if (isAdded(i)) EDITS.added[i - N0].deleted = false; else EDITS.deleted = EDITS.deleted.filter((x) => x !== i); DEL[i] = 0; refreshDelIds(); await saveEdits(); buildSpecies(); applyFilters(); refresh3D(); }
+    if (kind === "mod") { const m = EDITS.modified[i]; if (m) { setTreeAttrs(i, m.orig); delete EDITS.modified[i]; await saveEdits(); softRebuild(); } }
+    if (kind === "add") { EDITS.added[i - N0].deleted = true; DEL[i] = 1; refreshDelIds(); await saveEdits(); buildSpecies(); applyFilters(); refresh3D(); }
+    renderLedger(); toast("取り消しました");
+  }
+  // 追加（画面中央の十字で位置を指定）
+  let deAddCfg = null;
+  function openDataAddForm() {
+    openSheet("planadd", "元データに木を追加");
+    const last = deAddCfg || { sp: "", cat: "高木", h: "", w: "", g: "" };
+    $("#pane-planadd").innerHTML = `<p class="muted small" style="margin-top:0">現地で確認した、データにない木を元データに追加します。行政区・路線名は近くの木から自動で設定されます。</p>
+      <label class="field"><span class="lbl">樹種</span><input id="daSp" class="inp" list="spList" value="${esc(last.sp)}" placeholder="例：ハナミズキ"></label>
+      <div class="field"><span class="lbl">区分</span><div class="seg" id="daCat">${D.cat.map((c) => `<button data-v="${esc(c)}" class="${c === last.cat ? "on" : ""}">${esc(c)}</button>`).join("")}</div></div>
+      <div class="grid3"><label class="field"><span class="lbl">樹高(m)</span><input id="daH" class="inp" type="number" step="0.1" inputmode="decimal" value="${last.h ?? ""}"></label>
+        <label class="field"><span class="lbl">枝張(m)</span><input id="daW" class="inp" type="number" step="0.1" inputmode="decimal" value="${last.w ?? ""}"></label>
+        <label class="field"><span class="lbl">幹周(cm)</span><input id="daG" class="inp" type="number" step="1" inputmode="numeric" value="${last.g ?? ""}"></label></div>
+      <div class="btnrow"><button class="btn" data-act="da-start">${ic("pin")}地図で位置を指定</button><button class="btn sub" data-act="da-back">戻る</button></div>`;
+  }
+  function startDataAdd() {
+    const sp = toKata(($("#daSp").value || "").trim()); if (!sp) { toast("樹種を入力してください"); return; }
+    deAddCfg = { sp, cat: $("#daCat .on")?.dataset.v || "高木", h: numOrNull("#daH"), w: numOrNull("#daW"), g: numOrNull("#daG") };
+    closeSheet(); document.body.classList.add("adding"); $("#crosshair").removeAttribute("hidden");
+    $("#paBar").hidden = false; $("#paBar").dataset.mode = "data";
+    $("#paTxt").innerHTML = `＋を木の位置に合わせてください（${esc(sp)}）`; $("#paOk").textContent = "ここに追加";
+  }
+  async function confirmDataAdd() {
+    const c = map.getCenter(), near = nearestInfo(c.lng, c.lat);
+    const a = { uid: "a-" + Date.now().toString(36), ...deAddCfg, lon: +c.lng.toFixed(7), lat: +c.lat.toFixed(7), ward: near.ward, type: near.type, route: near.route, no: near.no, road: near.road, created: new Date().toISOString() };
+    EDITS.added.push(a); appendTree(a); await saveEdits(); softRebuild();
+    toast(`元データに追加しました（#${N - 1}・${near.ward || ""}${near.route ? "・" + near.route : ""}）`, 3500);
+  }
+  function initDataEdits() {
+    $("#pane-detail").addEventListener("click", (e) => {
+      const c = e.target.closest("#deCat button"); if (c) { $$("#deCat button").forEach((x) => x.classList.toggle("on", x === c)); return; }
+      const a = e.target.closest("[data-act]"); if (a && a.dataset.act.startsWith("de-")) dataEditAction(a.dataset.act);
+    });
+    $("#pane-planadd").addEventListener("click", (e) => {
+      const c = e.target.closest("#daCat button"); if (c) { $$("#daCat button").forEach((x) => x.classList.toggle("on", x === c)); return; }
+      const a = e.target.closest("[data-act]"); if (!a) return;
+      if (a.dataset.act === "da-start") startDataAdd();
+      if (a.dataset.act === "da-back") { ledgerTab = "data"; openSheet("ledger"); }
+    });
+    $("#pane-ledger").addEventListener("click", async (e) => {
+      if (ledgerTab !== "data") return;
+      const u = e.target.closest("[data-deundo]"); if (u) { const [k, i] = u.dataset.deundo.split(":"); deUndo(k, +i); return; }
+      const t = e.target.closest("[data-tree]"); if (t) { const i = +t.dataset.tree; if (DEL[i]) { flyToTree(C.x[i], C.y[i], 18); toast("削除した木です（取消で元に戻せます）"); } else selectTree(i, true); return; }
+      const a = e.target.closest("[data-act]"); if (!a || a.disabled) return;
+      const act = a.dataset.act;
+      if (act === "de-addstart") openDataAddForm();
+      if (act === "de-csv") exportFullCsv();
+      if (act === "de-json") exportTreesJson();
+      if (act === "de-list") exportEditList();
+      if (act === "de-export") download(`データ修正-${stamp()}.json`, JSON.stringify({ app: "tokyo-street-trees", type: "dataedits", version: 1, edits: EDITS }), "application/json");
+      if (act === "de-clear") {
+        if (!confirm("この端末のデータ修正（削除・追加・修正）をすべて取り消しますか？")) return;
+        EDITS = { deleted: [], modified: {}, added: [], dataCount: N0 }; await saveEdits(); location.reload();
+      }
+    });
+    $("#pane-ledger").addEventListener("change", async (e) => {
+      if (e.target.id !== "deImport" || !e.target.files[0]) return;
+      try {
+        const j = JSON.parse(await e.target.files[0].text()), ed = j.edits || j;
+        if (!Array.isArray(ed.deleted) || typeof ed.modified !== "object" || !Array.isArray(ed.added)) throw 0;
+        if (!confirm("読み込んだ修正でこの端末の修正を置き換えます。よろしいですか？（画面を再読み込みします）")) return;
+        EDITS = { deleted: ed.deleted, modified: ed.modified, added: ed.added, dataCount: ed.dataCount || N0 }; await saveEdits(); location.reload();
+      } catch { toast("読み込めませんでした（このアプリで書き出した修正ファイルを選んでください）", 4000); }
+      e.target.value = "";
+    });
+  }
+  // =====================================================================
+  // 樹形を反映した3D表示
+  // =====================================================================
+  // 樹冠の形（t=0 樹冠の下端 → t=1 頂部 での半径の比）と、樹冠が始まる高さ（cb：樹高に対する比）
+  const CROWN = {
+    "円錐形": { cb: 0.16, tiers: 7, prof: (t) => Math.max(0.08, 1 - t * 0.95) },
+    "卵形": { cb: 0.32, tiers: 6, prof: (t) => Math.sqrt(Math.max(0.02, 1 - ((t - 0.4) / 0.62) ** 2)) },
+    "球形": { cb: 0.34, tiers: 6, prof: (t) => Math.sqrt(Math.max(0.04, 1 - (2 * t - 1) ** 2)) },
+    "盃形": { cb: 0.36, tiers: 6, prof: (t) => t < 0.7 ? 0.45 + 0.55 * Math.sin(t / 0.7 * Math.PI / 2) : Math.sqrt(Math.max(0.05, 1 - ((t - 0.7) / 0.32) ** 2)) },
+    "枝垂れ形": { cb: 0.12, tiers: 6, prof: (t) => Math.max(0.15, Math.sqrt(Math.max(0, 1 - t * t))) },
+    "ヤシ形": { cb: 0.82, tiers: 3, prof: (t) => Math.sqrt(Math.max(0.1, 1 - (2 * t - 1) ** 2)) },
+    "株立ち形": { cb: 0.03, tiers: 4, prof: (t) => Math.sqrt(Math.max(0.1, 1 - (2 * t - 1) ** 2)) },
+  };
+  const shapeCache = new Map();
+  function crownOf(std, cat, form) {
+    const k = std + "|" + cat + "|" + form;
+    if (shapeCache.has(k)) return shapeCache.get(k);
+    let sh = Object.entries(CFG.crownShapes).find(([, list]) => list.some((n) => n.endsWith("*") ? std.startsWith(n.slice(0, -1)) : std === n))?.[0];
+    if (!sh) sh = form === "ヤ" ? "ヤシ形" : cat === "中木" ? "株立ち形" : form === "針" ? "円錐形" : "卵形";
+    shapeCache.set(k, sh); return sh;
+  }
+  const lerpColor = (stops, v) => {
+    for (let k = 1; k < stops.length; k++) if (v <= stops[k][0] || k === stops.length - 1) {
+      const [a, ca] = stops[k - 1], [b, cb] = stops[k], t = Math.max(0, Math.min(1, (v - a) / (b - a || 1)));
+      const p = (c) => [1, 3, 5].map((o) => parseInt(c.slice(o, o + 2), 16)), A = p(ca), B = p(cb);
+      return "#" + A.map((x, j) => Math.round(x + (B[j] - x) * t).toString(16).padStart(2, "0")).join("");
+    }
+  };
+  function crownColor(a) {
+    if (a.kindColor) return a.kindColor;
+    if (colorMode === "sp") { const k = topSpecies.indexOf(a.spIdx ?? -1); return k >= 0 && k < 10 ? PALETTE[k] : "#9e9e9e"; }
+    if (colorMode === "h") return lerpColor([[0, "#fff59d"], [3, "#c0ca33"], [8, "#43a047"], [15, "#1b5e20"], [25, "#0b2e10"]], a.h || 0);
+    if (colorMode === "g") return a.g == null ? "#bdbdbd" : lerpColor([[0, "#ffe0b2"], [50, "#ffb74d"], [100, "#f57c00"], [200, "#8d3b00"], [400, "#3e1a00"]], a.g);
+    return a.cat === "中木" ? CAT_COLORS["中木"] : (a.leaf === "落" ? "#4caf50" : "#2e7d32");
+  }
+  const octagon = (lon, lat, r) => { const ring = []; for (let k = 0; k <= 8; k++) { const t = (k % 8) / 8 * 2 * Math.PI; ring.push([lon + Math.sin(t) * r / M_LON, lat + Math.cos(t) * r / M_LAT]); } return { type: "Polygon", coordinates: [ring] }; };
+  // 1本の木を「幹＋段状の樹冠」の立体（fill-extrusion用ポリゴン）にする
+  function treeSolids(a, props, out) {
+    const h = Math.max(0.5, a.h || 2), R = Math.max(0.35, (a.w || 1.5) / 2), S = CROWN[crownOf(a.std, a.cat, a.form)] || CROWN["卵形"];
+    const cbH = h * S.cb, dbh = a.g ? a.g / 100 / Math.PI : h / 60;
+    if (S.cb > 0.05) out.push({ type: "Feature", geometry: octagon(a.lon, a.lat, Math.max(0.12, dbh / 2) * 1.0), properties: { ...props, base: 0, top: +(cbH + 0.3).toFixed(2), c: "#6d4c41" } });
+    const col = crownColor(a), n = S.tiers, dh = (h - cbH) / n;
+    for (let k = 0; k < n; k++) {
+      const t = (k + 0.5) / n, r = Math.max(0.15, R * S.prof(t));
+      out.push({ type: "Feature", geometry: octagon(a.lon, a.lat, r), properties: { ...props, base: +(cbH + k * dh).toFixed(2), top: +(cbH + (k + 1) * dh).toFixed(2), c: col } });
+    }
+  }
+  function attrForDraw(i) {
+    const v = SPI[C.sp[i]];
+    let h = val("h", i); if (h == null) { const d = distFor("h", i); h = d ? groupStats("h", d).med : 3; }
+    let g = val("g", i); if (g == null) { const d = distFor("g", i); g = d ? groupStats("g", d).med : null; }
+    return { std: v.std, form: v.form, leaf: v.leaf, cat: D.cat[C.cat[i]], h, g, w: CW[i] || null, lon: C.x[i], lat: C.y[i], spIdx: C.sp[i] };
+  }
+  let warned3d = false;
+  function refresh3D() {
+    if (!$("#toggle3d")?.checked || !map.getSource("trees3d") || PVon) return;
+    if (map.getZoom() < 15) { map.getSource("trees3d").setData(EMPTY_FC); if (!warned3d) { toast("立体表示は地図を拡大すると表示されます"); warned3d = true; } return; }
+    const b = map.getBounds(), c = map.getCenter(), cand = [];
+    const removed = PLAN ? new Set(Object.entries(PLAN.edits).filter(([, e]) => e.act === "remove").map(([k]) => +k)) : null;
+    for (let i = 0; i < N; i++) {
+      if (!mask[i] || DEL[i] || !inView(i, b) || (removed && removed.has(i))) continue;
+      cand.push([Math.hypot((C.x[i] - c.lng) * M_LON, (C.y[i] - c.lat) * M_LAT), i]);
+    }
+    cand.sort((x, y) => x[0] - y[0]);
+    const feats = [];
+    for (const [, i] of cand.slice(0, CFG.tree3d.maxTrees)) treeSolids(attrForDraw(i), { i, lon: C.x[i], lat: C.y[i] }, feats);
+    if (PLAN) for (const n of PLAN.adds) if (b.contains([n.lon, n.lat])) { const a = synthAttr(n); treeSolids({ ...a, kindColor: "#ab47bc" }, { nid: n.id, lon: n.lon, lat: n.lat }, feats); }
+    map.getSource("trees3d").setData({ type: "FeatureCollection", features: feats });
+    if (cand.length > CFG.tree3d.maxTrees) toast(`立体表示は画面中央に近い${fmt(CFG.tree3d.maxTrees)}本です（拡大するとすべて表示）`, 2500);
+  }
+  function set3D(on) {
+    if (on && !map.getSource("trees3d")) {
+      map.addSource("trees3d", { type: "geojson", data: EMPTY_FC, buffer: 8, tolerance: 0 });
+      map.addLayer({ id: "trees3d", type: "fill-extrusion", source: "trees3d", layout: { visibility: "none" }, paint: {
+        "fill-extrusion-color": ["get", "c"], "fill-extrusion-height": ["get", "top"], "fill-extrusion-base": ["get", "base"],
+        "fill-extrusion-opacity": 0.95, "fill-extrusion-vertical-gradient": true } }, "mine");
+    }
+    $("#toggle3d").checked = on;
+    map.setLayoutProperty("trees3d", "visibility", on ? "visible" : "none");
+    map.setLayoutProperty("trees", "visibility", on ? "none" : "visible");
+    if (on) {
+      map.dragRotate.enable(); map.touchPitch.enable(); map.touchZoomRotate.enableRotation();
+      map.easeTo({ pitch: 60, zoom: Math.max(map.getZoom(), 17), duration: 1000 });
+      map.once("moveend", refresh3D);
+      toast("2本指で上下になぞると傾き、回すと回転します", 3500);
+    } else {
+      map.dragRotate.disable(); map.touchPitch.disable(); map.touchZoomRotate.disableRotation();
+      map.easeTo({ pitch: 0, bearing: 0, duration: 800 });
+    }
+    renderLegend();
+  }
+
+  // =====================================================================
+  // 成長シミュレーション（簡易モデル）
+  // =====================================================================
+  // 毎年の成長量 = 基準の成長量 ×（1 − 現在の大きさ ÷ 上限）。
+  // 上限は同じ樹種・区分の大きい木（上位5%）の大きさ。樹形維持の剪定や枯損は考慮しません。
+  const maxCache = new Map();
+  function sizeMax(f, std, cat) {
+    const k = f + "|" + std + "|" + cat;
+    if (maxCache.has(k)) return maxCache.get(k);
+    const a = DIST[f].get(std + "|" + catIdx(cat)) || DIST[f].get(std);
+    const def = (CFG.growth.max[cat] || CFG.growth.max["高木"])[f];
+    const v = a && a.length >= 10 ? Math.max(quantile(a, .95), def * 0.4) : def;
+    maxCache.set(k, v); return v;
+  }
+  function grow(a, years) {
+    if (!years) return a;
+    const G = CFG.growth.rate[a.cat] || CFG.growth.rate["高木"];
+    let { h, g, w } = a;
+    const Hm = Math.max(sizeMax("h", a.std, a.cat), h || 0), Gm = Math.max(sizeMax("g", a.std, a.cat), g || 0), Wm = Math.max(sizeMax("w", a.std, a.cat), w || 0);
+    for (let y = 0; y < years; y++) {
+      if (h != null) h += G.h * Math.max(0, 1 - h / Hm);
+      if (g != null) g += G.g * Math.max(0, 1 - g / Gm);
+      if (w != null) w += G.w * Math.max(0, 1 - w / Wm);
+    }
+    return { ...a, h, g, w };
+  }
+  function metricsAt(list, years) {
+    const now = list.map((a) => grow(a, years)), next = list.map((a) => grow(a, years + 1));
+    const m = metricsOf(now);
+    let st0 = 0, st1 = 0;
+    for (let k = 0; k < now.length; k++) { const s0 = co2Of(now[k]), s1 = co2Of(next[k]); if (s0 != null && s1 != null) { st0 += s0; st1 += s1; } }
+    m.ann = st1 - st0;
+    return m;
+  }
+
+  // =====================================================================
+  // 計画の範囲だけを表示する画面（3D・成長スライダー）
+  // =====================================================================
+  let PVon = false, pvPrevVis = {}, pvSel = null;
+  const PV = { year: 0, d3: true, canopy: true, fall: false, ghost: false, color: "kind" };
+  const PV_HIDE = ["heat", "trees", "canopy", "fallall", "trees-sel", "trees-picked", "trees-plan", "selarea-fill", "selarea-line", "planarea-line", "planadd", "planadd-canopy", "planadd-fall", "mine", "trees3d", "fallone-fill", "fallone-line"];
+  const KIND_COL = { "現況": "#2e7d32", "植え替え": "#8e24aa", "サイズ変更": "#ef6c00", "新規植栽": "#ba68c8" };
+  function addPVLayers() {
+    if (map.getSource("pv")) return;
+    map.addSource("pv", { type: "geojson", data: EMPTY_FC });
+    map.addSource("pvghost", { type: "geojson", data: EMPTY_FC });
+    map.addSource("pv3d", { type: "geojson", data: EMPTY_FC, buffer: 8, tolerance: 0 });
+    const m2px = (prop) => ["interpolate", ["exponential", 2], ["zoom"], 10, ["/", ["get", prop], 124.17], 20, ["/", ["get", prop], 0.12126]];
+    map.addLayer({ id: "pv-fall", type: "circle", source: "pv", paint: { "circle-radius": m2px("fr"), "circle-color": "rgba(239,108,0,0.17)", "circle-stroke-width": 1.6, "circle-stroke-color": "rgba(216,67,21,0.9)" } });
+    map.addLayer({ id: "pv-canopy", type: "circle", source: "pv", paint: { "circle-radius": m2px("cr"), "circle-color": ["get", "c"], "circle-opacity": 0.3, "circle-stroke-width": 1, "circle-stroke-color": ["get", "c"] } });
+    map.addLayer({ id: "pv-ghost", type: "circle", source: "pvghost", paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 2, 18, 8], "circle-color": "rgba(150,150,150,0.35)", "circle-stroke-width": 1, "circle-stroke-color": "rgba(120,120,120,0.6)" } });
+    map.addLayer({ id: "pv-points", type: "circle", source: "pv", paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 2.5, 15, 4, 18, 7], "circle-color": ["get", "c"], "circle-stroke-width": 1, "circle-stroke-color": "#fff" } });
+    map.addLayer({ id: "pv-3d", type: "fill-extrusion", source: "pv3d", paint: { "fill-extrusion-color": ["get", "c"], "fill-extrusion-height": ["get", "top"], "fill-extrusion-base": ["get", "base"], "fill-extrusion-opacity": 0.95, "fill-extrusion-vertical-gradient": true } });
+    map.addLayer({ id: "pv-sel", type: "circle", source: "pv", filter: ["==", ["get", "k"], -1], paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 6, 18, 14], "circle-color": "rgba(0,0,0,0)", "circle-stroke-width": 3, "circle-stroke-color": "#e53935" } });
+  }
+  let pvList = [];
+  function pvUpdate() {
+    if (!PVon || !PLAN) return;
+    const L = planLists(), Y = PV.year;
+    pvList = L.after.map((a) => grow(a, Y));
+    const feats = pvList.map((a, k) => ({ type: "Feature", geometry: { type: "Point", coordinates: [a.lon, a.lat] },
+      properties: { k, c: PV.color === "kind" ? KIND_COL[a.kind] : crownColor({ ...a, kindColor: null, spIdx: STD.get(a.std)?.idx[0] }), cr: (a.w || 0) / 2, fr: (a.h || 0) * CFG.fall.factor } }));
+    map.getSource("pv").setData({ type: "FeatureCollection", features: feats });
+    const removed = Object.entries(PLAN.edits).filter(([, e]) => e.act === "remove").map(([k]) => +k);
+    map.getSource("pvghost").setData(PV.ghost ? { type: "FeatureCollection", features: removed.map((i) => ({ type: "Feature", geometry: { type: "Point", coordinates: [C.x[i], C.y[i]] }, properties: {} })) } : EMPTY_FC);
+    const solids = [];
+    if (PV.d3) pvList.slice(0, CFG.tree3d.maxPlanTrees).forEach((a, k) => treeSolids({ ...a, kindColor: PV.color === "kind" ? KIND_COL[a.kind] : null, spIdx: STD.get(a.std)?.idx[0] }, { k }, solids));
+    map.getSource("pv3d").setData({ type: "FeatureCollection", features: solids });
+    map.setLayoutProperty("pv-3d", "visibility", PV.d3 ? "visible" : "none");
+    map.setLayoutProperty("pv-points", "visibility", PV.d3 ? "none" : "visible");
+    map.setLayoutProperty("pv-canopy", "visibility", PV.canopy && !PV.d3 ? "visible" : "none");
+    map.setLayoutProperty("pv-fall", "visibility", PV.fall ? "visible" : "none");
+    map.setFilter("pv-sel", ["==", ["get", "k"], pvSel ?? -1]);
+    renderPVStats(L);
+  }
+  function enterPlanView() {
+    if (!PLAN) return;
+    addPVLayers();
+    PVon = true; pvSel = null;
+    pvPrevVis = {};
+    for (const id of PV_HIDE) if (map.getLayer(id)) { pvPrevVis[id] = map.getLayoutProperty(id, "visibility") || "visible"; map.setLayoutProperty(id, "visibility", "none"); }
+    for (const id of ["pv-fall", "pv-canopy", "pv-ghost", "pv-points", "pv-3d", "pv-sel"]) map.setLayoutProperty(id, "visibility", "visible");
+    document.body.classList.add("planview");
+    $("#pvBarTxt").innerHTML = `計画案「<b>${esc(PLAN.name)}</b>」の範囲だけを表示中`;
+    map.dragRotate.enable(); map.touchPitch.enable(); map.touchZoomRotate.enableRotation();
+    openSheet("planview", "計画の範囲（3D・成長）");
+    pvUpdate();
+    const pts = pvList.length ? pvList : PLAN.base.map((i) => ({ lon: C.x[i], lat: C.y[i] }));
+    if (pts.length) {
+      let x0 = 180, x1 = -180, y0 = 90, y1 = -90; for (const a of pts) { x0 = Math.min(x0, a.lon); x1 = Math.max(x1, a.lon); y0 = Math.min(y0, a.lat); y1 = Math.max(y1, a.lat); }
+      map.fitBounds([[x0, y0], [x1, y1]], { padding: isWide() ? { top: 90, bottom: 60, left: 440, right: 80 } : { top: 80, bottom: innerHeight * .5, left: 40, right: 40 }, maxZoom: 18.5, pitch: PV.d3 ? 55 : 0, duration: 1000 });
+    }
+  }
+  function exitPlanView() {
+    if (!PVon) return;
+    PVon = false;
+    for (const id of ["pv-fall", "pv-canopy", "pv-ghost", "pv-points", "pv-3d", "pv-sel"]) map.setLayoutProperty(id, "visibility", "none");
+    for (const [id, v] of Object.entries(pvPrevVis)) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", v);
+    document.body.classList.remove("planview");
+    if (!$("#toggle3d").checked) { map.dragRotate.disable(); map.touchPitch.disable(); map.touchZoomRotate.disableRotation(); map.easeTo({ pitch: 0, bearing: 0, duration: 600 }); }
+    else refresh3D();
+    openSheet("plan");
+  }
+  const yearLabel = (y) => y ? `+${y}年後（${new Date().getFullYear() + y}年）` : `現在（${new Date().getFullYear()}年）`;
+  function renderPVStats(L) {
+    const el = $("#pane-planview"); if (!el) return;
+    const Y = PV.year, m0 = metricsOf(L.cur), mb = metricsAt(L.cur, Y), mp = metricsAt(L.after, Y);
+    m0.ann = metricsAt(L.cur, 0).ann;
+    const f1 = (x) => x.toFixed(1), fi = (x) => fmt(Math.round(x));
+    const rows = [["本数", m0.n, mb.n, mp.n, fi, "本"], ["平均樹高", m0.avgH ?? 0, mb.avgH ?? 0, mp.avgH ?? 0, f1, "m"], ["CO2貯留量", m0.stock, mb.stock, mp.stock, fmtT, "t"],
+      ["年間CO2吸収量", m0.ann, mb.ann, mp.ann, (x) => x.toFixed(2), "t/年"], ["樹冠投影面積", m0.area, mb.area, mp.area, fi, "m²"], ["倒木影響範囲", m0.fall, mb.fall, mp.fall, fi, "m²"]];
+    const sel = pvSel != null ? pvList[pvSel] : null;
+    const chip = (k, label) => `<button class="pchip${PV[k] ? " on" : ""}" data-pv="${k}">${label}</button>`;
+    const years = [0, 5, 10, 15, 20, 30].filter((y) => y <= CFG.growth.maxYears);
+    const trend = years.map((y) => [y, metricsAt(L.after, y)]);
+    if (!el.dataset.built) {
+      el.dataset.built = "1";
+      el.innerHTML = `<div class="pvslider"><div class="pv-year" id="pvYear"></div>
+          <input id="pvRange" type="range" min="0" max="${CFG.growth.maxYears}" step="1" value="${Y}" aria-label="経過年数">
+          <div class="pv-ticks"><span>今</span><span>${CFG.growth.maxYears / 2}年後</span><span>${CFG.growth.maxYears}年後</span></div></div>
+        <div id="pvBody"></div>`;
+    }
+    $("#pvYear").textContent = yearLabel(Y);
+    $("#pvRange").value = Y;
+    $("#pvBody").innerHTML = `
+      <div class="pctrow">${chip("d3", "3D")}${chip("canopy", "樹冠")}${chip("fall", "倒木影響範囲")}${chip("ghost", "撤去した木を薄く表示")}
+        <button class="pchip${PV.color === "kind" ? " on" : ""}" data-pvcolor="kind">色：変更の種類</button><button class="pchip${PV.color !== "kind" ? " on" : ""}" data-pvcolor="mode">色：表示設定に合わせる</button></div>
+      ${PV.color === "kind" ? `<div class="chgsum">${Object.entries(KIND_COL).map(([k, c]) => `<span><i style="background:${c}"></i>${k}</span>`).join("")}</div>` : ""}
+      ${sel ? `<div class="pvcard"><b>${esc(sel.std)}</b> <span class="tag">${esc(sel.kind)}</span><br><span class="small">${yearLabel(Y)}：樹高 ${sel.h != null ? sel.h.toFixed(1) : "-"}m・幹周 ${sel.g != null ? Math.round(sel.g) : "-"}cm・枝張 ${sel.w != null ? sel.w.toFixed(1) : "-"}m・倒木到達距離 ${sel.h != null ? (sel.h * CFG.fall.factor).toFixed(1) : "-"}m・樹形 ${esc(crownOf(sel.std, sel.cat, sel.form))}</span></div>` : `<p class="anote" style="margin-top:0">木をタップすると、その年の大きさを表示します。</p>`}
+      <div class="tablewrap"><table class="ctable"><thead><tr><th></th><th>現況<br><small>今</small></th><th>現況のまま<br><small>${Y ? "+" + Y + "年" : "今"}</small></th><th>計画<br><small>${Y ? "+" + Y + "年" : "今"}</small></th></tr></thead>
+        <tbody>${rows.map(([l, a, b, c, f, u]) => `<tr><th>${l}</th><td>${f(a)}<small>${u}</small></td><td>${f(b)}<small>${u}</small></td><td><b>${f(c)}</b><small>${u}</small></td></tr>`).join("")}</tbody></table></div>
+      <div class="sec-title">計画の推移 <button class="btn line" data-act="pv-csv" style="min-height:28px;padding:0 10px;font-size:12px;margin-left:auto">CSV（毎年）</button></div>
+      <div class="tablewrap"><table class="ctable"><thead><tr><th>年</th><th>平均樹高</th><th>CO2貯留</th><th>年間吸収</th><th>樹冠面積</th><th>倒木範囲</th></tr></thead>
+        <tbody>${trend.map(([y, m]) => `<tr${y === Y ? ' class="cur"' : ""}><th>${y ? "+" + y : "今"}</th><td>${f1(m.avgH ?? 0)}<small>m</small></td><td>${fmtT(m.stock)}<small>t</small></td><td>${m.ann.toFixed(2)}<small>t</small></td><td>${fi(m.area)}<small>m²</small></td><td>${fi(m.fall)}<small>m²</small></td></tr>`).join("")}</tbody></table></div>
+      <div class="btnrow"><button class="btn" data-act="pv-exit">${ic("back")}計画の編集に戻る</button></div>
+      <div class="notebox"><b>成長の計算について</b><br>毎年の成長量＝基準の成長量×（1−現在の大きさ÷上限）とする簡易モデルです。基準の成長量は高木で樹高${CFG.growth.rate["高木"].h}m・幹周${CFG.growth.rate["高木"].g}cm・枝張${CFG.growth.rate["高木"].w}m／年、中木で樹高${CFG.growth.rate["中木"].h}m・幹周${CFG.growth.rate["中木"].g}cm・枝張${CFG.growth.rate["中木"].w}m／年。上限は同じ樹種・区分の大きい木（上位5%）の大きさです。剪定・枯損・植え替えの周期は考慮していません。係数は index.html の APP_CONFIG.growth で変更できます。<br>
+        立体の樹形は樹種ごとの代表的な形（${Object.keys(CROWN).join("・")}）で、高さ＝樹高、樹冠の幅＝枝張、幹の太さ＝幹周から描いています（APP_CONFIG.crownShapes で樹種と樹形の対応を変更可）。</div>`;
+  }
+  function pvCsv() {
+    const L = planLists(), head = ["経過年", "西暦", "計画：本数", "計画：平均樹高(m)", "計画：CO2貯留量(t)", "計画：年間CO2吸収量(t)", "計画：樹冠投影面積(m2)", "計画：倒木影響範囲(m2)",
+      "現況のまま：平均樹高(m)", "現況のまま：CO2貯留量(t)", "現況のまま：年間CO2吸収量(t)", "現況のまま：樹冠投影面積(m2)", "現況のまま：倒木影響範囲(m2)"], rows = [head];
+    for (let y = 0; y <= CFG.growth.maxYears; y++) { const p = metricsAt(L.after, y), b = metricsAt(L.cur, y);
+      rows.push([y, new Date().getFullYear() + y, p.n, +(p.avgH ?? 0).toFixed(2), +p.stock.toFixed(3), +p.ann.toFixed(3), Math.round(p.area), Math.round(p.fall), +(b.avgH ?? 0).toFixed(2), +b.stock.toFixed(3), +b.ann.toFixed(3), Math.round(b.area), Math.round(b.fall)]); }
+    download(`計画案-${safeName(PLAN.name)}-成長推移-${stamp()}.csv`, "﻿" + rows.map((r) => r.map(csvCell).join(",")).join("\r\n"), "text/csv");
+  }
+  function pvClick(e) {
+    const pad = 8, box = [[e.point.x - pad, e.point.y - pad], [e.point.x + pad, e.point.y + pad]];
+    const fs = map.queryRenderedFeatures(box, { layers: PV.d3 ? ["pv-3d"] : ["pv-points"] });
+    pvSel = fs.length ? fs[0].properties.k : null;
+    if (pvSel != null && sheetSize() === "mini") setSheetSize("half");
+    map.setFilter("pv-sel", ["==", ["get", "k"], pvSel ?? -1]);
+    renderPVStats(planLists());
+  }
+  function initPlanView() {
+    $("#pvExit").onclick = exitPlanView;
+    const upd = debounce(pvUpdate, 40);
+    $("#pane-planview").addEventListener("input", (e) => { if (e.target.id === "pvRange") { PV.year = +e.target.value; $("#pvYear").textContent = yearLabel(PV.year); upd(); } });
+    $("#pane-planview").addEventListener("click", (e) => {
+      const c = e.target.closest("[data-pv]"); if (c) { PV[c.dataset.pv] = !PV[c.dataset.pv]; if (c.dataset.pv === "d3") map.easeTo({ pitch: PV.d3 ? 55 : 0, duration: 600 }); pvUpdate(); return; }
+      const cc = e.target.closest("[data-pvcolor]"); if (cc) { PV.color = cc.dataset.pvcolor; pvUpdate(); return; }
+      const a = e.target.closest("[data-act]"); if (!a) return;
+      if (a.dataset.act === "pv-exit") exitPlanView();
+      if (a.dataset.act === "pv-csv") pvCsv();
+    });
+  }
+
   // ---------- 起動 ----------
   (async function main() {
     paintIcons();
@@ -3384,11 +3897,13 @@ window.PlanStore = window.NoteStore.plans;
       await ensureMapLib();
       const ready = createMap();
       const j = await fetchFirst(CFG.treesUrls);
-      D = j.dict; C = j.cols; N = j.count; mask = new Uint8Array(N).fill(1); matchCount = N;
+      D = j.dict; C = j.cols; N = j.count;
+      await loadEdits(); applyDataEdits();
+      mask = new Uint8Array(N).fill(1); matchCount = N;
       await ready;
       for (const n of await NoteStore.all()) notes.set(n.id, n);
       buildSpecies(); computeQuality(); buildDist();
-      addLayers(); initUI(); await initPhase1(); await initPhase2(); refreshNotes(); applyFilters();
+      addLayers(); initUI(); await initPhase1(); await initPhase2(); initDataEdits(); initPlanView(); refreshNotes(); applyFilters();
       const t = hashTree();
       if (t != null) selectTree(t, !/(?:^#|&)map=/.test(location.hash));
       const ld = $("#loading"); ld.style.transition = "opacity .35s"; ld.style.opacity = 0; setTimeout(() => ld.remove(), 400);
