@@ -105,20 +105,20 @@ svg.ic { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-wid
 
 /* ===== ボトムシート ===== */
 .sheet {
-  position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; height: 52vh; max-height: calc(100% - var(--safe-t) - 70px);
+  position: fixed; z-index: 30; left: 0; right: 0; bottom: calc(var(--nav-h) + var(--safe-b)); height: 52vh; max-height: calc(100% - var(--safe-t) - 70px - var(--nav-h) - var(--safe-b));
   background: var(--surface); border-radius: var(--r-lg) var(--r-lg) 0 0; box-shadow: var(--shadow-2);
   display: flex; flex-direction: column; transition: height .28s cubic-bezier(.2,.8,.2,1), transform .28s cubic-bezier(.2,.8,.2,1);
   transform: translateY(0);
 }
-.sheet.full { height: calc(100% - var(--safe-t) - 70px); }
+.sheet.full { height: calc(100% - var(--safe-t) - 70px - var(--nav-h) - var(--safe-b)); }
 .sheet.dragging { transition: none; }
-.sheet.closing { transform: translateY(105%); }
+.sheet.closing { transform: translateY(calc(100% + 90px)); }
 .grab { padding: 8px 0 2px; display: grid; place-items: center; touch-action: none; cursor: grab; }
 .grab span { width: 40px; height: 5px; border-radius: 3px; background: var(--line); }
 .sheet-head { display: flex; align-items: center; gap: 8px; padding: 2px 10px 8px 18px; touch-action: none; }
 .sheet-head h2 { flex: 1; margin: 0; font-size: 18px; font-weight: 800; letter-spacing: .02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sheet-head .icon-btn { background: var(--surface-2); width: 34px; height: 34px; }
-.sheet-body { flex: 1; overflow-y: auto; padding: 0 18px calc(24px + var(--safe-b)); -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.sheet-body { flex: 1; overflow-y: auto; padding: 0 18px 24px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 .pane { display: none; }
 .pane.on { display: block; }
 
@@ -159,7 +159,7 @@ textarea.inp { resize: vertical; min-height: 88px; }
 .btn svg.ic { width: 18px; height: 18px; }
 .btnrow { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
 .btnrow > .btn { flex: 1; }
-.sticky-foot { position: sticky; bottom: calc(-24px - var(--safe-b)); margin: 8px -18px 0; padding: 12px 18px calc(12px + var(--safe-b)); background: var(--surface); border-top: 1px solid var(--line); display: flex; gap: 8px; }
+.sticky-foot { position: sticky; bottom: -24px; margin: 8px -18px 0; padding: 12px 18px 12px; background: var(--surface); border-top: 1px solid var(--line); display: flex; gap: 8px; }
 .sticky-foot .btn { flex: 1; }
 .sticky-foot .btn.main { flex: 2; }
 .file-btn { position: relative; overflow: hidden; }
@@ -279,7 +279,7 @@ details.olist .item-main { font-size: 13.5px; }
 .layer-opt { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-weight: 700; font-size: 13px; margin-top: 14px; }
 .layer-opt small { display: block; font-weight: 500; color: var(--muted); font-size: 11px; }
 
-/* ===== 分布・大径木 ===== */
+/* ===== 分布（同じ樹種の中での位置） ===== */
 .hist { margin: 0 0 12px; }
 .hist-head { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; }
 .hist-head > span:first-child { color: var(--muted); font-weight: 700; width: 3em; }
@@ -291,12 +291,82 @@ details.olist .item-main { font-size: 13.5px; }
 .harrow { fill: var(--danger); }
 .hline { stroke: var(--danger); stroke-width: 1.5; stroke-dasharray: 3 2; }
 .hist-axis { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
-.bigbadge { display: flex; align-items: center; gap: 8px; background: #fff4cc; color: #7a5a00; border-radius: var(--r-md); padding: 8px 12px; font-size: 12.5px; font-weight: 700; margin-bottom: 12px; }
-@media (prefers-color-scheme: dark) { .bigbadge { background: #3a3215; color: #f2d27a; } }
-.bigbadge svg.ic { width: 18px; height: 18px; }
 .seg.mini2 { display: inline-flex; padding: 2px; }
 .seg.mini2 button { padding: 4px 9px; font-size: 11.5px; }
 .rank { width: 22px; text-align: center; font-weight: 800; color: var(--muted); font-size: 12px; flex: none; }
+
+/* ===== 選択・ドリル・倒木・台帳 ===== */
+.fab.active { background: #1565c0; color: #fff; }
+.selbar { position: fixed; z-index: 21; right: 12px; top: calc(var(--safe-t) + 112px); display: flex; align-items: center; gap: 4px;
+  background: #1565c0; color: #fff; border-radius: 22px; padding: 4px 4px 4px 14px; box-shadow: var(--shadow-2); font-size: 13px; white-space: nowrap; max-width: calc(100vw - 180px); }
+.selbar > span { overflow: hidden; text-overflow: ellipsis; }
+.selbar .muted { color: rgba(255,255,255,.75); }
+.selbar button { border: 0; background: rgba(255,255,255,.2); color: #fff; border-radius: 16px; padding: 6px 12px; font-weight: 700; flex: none; }
+body.sheet-full .selbar { opacity: 0; pointer-events: none; }
+.toolgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tool { border: 0; background: var(--surface-2); border-radius: var(--r-md); padding: 10px; text-align: left; display: flex; flex-direction: column; gap: 2px; color: var(--fg); }
+.tool svg.ic { color: var(--accent); width: 20px; height: 20px; margin-bottom: 2px; }
+.tool b { font-size: 13px; }
+.tool span { font-size: 11px; color: var(--muted); }
+#selPop { width: min(340px, calc(100vw - 90px)); bottom: calc(var(--nav-h) + var(--safe-b) + 74px); }
+.lasso { position: fixed; inset: 0; z-index: 35; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+.lasso path { fill: rgba(21,101,192,.12); stroke: #1565c0; stroke-width: 2.5; stroke-dasharray: 6 4; }
+.addbar.lassobar { z-index: 40; flex-wrap: wrap; background: #1565c0; color: #fff; }
+.lassobar .seg { background: rgba(255,255,255,.2); }
+.lassobar .seg button { color: #fff; background: none; }
+.lassobar .seg button.on { background: #fff; color: #1565c0; }
+.lassobar .seg button:disabled { opacity: .4; }
+.lassoing .topbar, .lassoing .fabs, .lassoing .legend, .lassoing .countpill, .lassoing .selbar, .lassoing .bottomnav { opacity: 0; pointer-events: none; }
+.selhead { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+.sel-label { font-weight: 800; font-size: 15px; }
+.pctrow { display: flex; align-items: center; gap: 6px; margin: 4px 0 10px; flex-wrap: wrap; }
+.pctrow .lbl { font-size: 12px; font-weight: 700; color: var(--muted); }
+.pctrow .inp { width: 74px; padding: 7px 8px; text-align: center; }
+.pchip { border: 0; border-radius: 14px; padding: 6px 12px; background: var(--surface-2); color: var(--muted); font-weight: 700; font-size: 13px; }
+.pchip.on { background: var(--accent); color: var(--accent-fg); }
+.rk-sum { margin: 6px 0; font-size: 14px; }
+.rk-sum b { font-size: 20px; font-weight: 800; }
+.rk-sum svg.ic { width: 14px; height: 14px; vertical-align: -2px; }
+.crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 4px 0 6px; font-size: 13px; }
+.crumbs button { border: 0; background: var(--green-100); color: var(--accent); border-radius: 12px; padding: 4px 10px; font-weight: 700; }
+.crumbs button:last-of-type { background: var(--accent); color: var(--accent-fg); }
+.crumbs .sep { color: var(--muted); }
+.drow { display: flex; align-items: stretch; gap: 6px; }
+.dmain { flex: 1; min-width: 0; border: 0; background: none; text-align: left; padding: 10px 2px; display: grid; grid-template-columns: 1fr 70px; gap: 2px 10px; align-items: center; }
+.dmain:active { background: var(--green-50); }
+.dname { font-weight: 700; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dbar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.dbar span { display: block; height: 100%; background: var(--green-600); }
+.dmeta { grid-column: 1 / -1; font-size: 11.5px; color: var(--muted); }
+.dsel { border: 0; background: var(--surface-2); color: #1565c0; border-radius: 10px; width: 42px; display: grid; place-items: center; margin: 8px 0; flex: none; }
+.dsel svg.ic { width: 18px; height: 18px; }
+.fallbox { background: #fff3e6; border-radius: var(--r-md); padding: 10px 14px; margin: 0 0 14px; }
+@media (prefers-color-scheme: dark) { .fallbox { background: #33261a; } }
+.fall-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; color: #b44d00; }
+.fall-head svg.ic { width: 18px; height: 18px; }
+.fallctl { display: flex; gap: 8px; margin-top: 8px; }
+.fallctl .inp { flex: 1; padding: 8px 10px; font-size: 14px; }
+.fallctl .btn { min-height: 40px; background: #e65100; color: #fff; }
+#printArea { display: none; }
+@media print {
+  html, body { height: auto !important; overflow: visible !important; background: #fff !important; color: #000 !important; }
+  body > *:not(#printArea) { display: none !important; }
+  #printArea { display: block !important; font-size: 10.5pt; color: #000; }
+  #printArea h1 { font-size: 16pt; margin: 0 0 4pt; }
+  #printArea h2 { font-size: 12pt; margin: 14pt 0 4pt; border-bottom: 1px solid #999; }
+  .pmeta { margin: 0 0 4pt; color: #333; }
+  .pkpi { width: 100%; border-collapse: collapse; margin: 8pt 0; }
+  .pkpi td { border: 1px solid #bbb; padding: 4pt; vertical-align: top; }
+  .pkpi span { display: block; font-size: 8pt; color: #555; }
+  .pkpi b { font-size: 12pt; }
+  .pmap { width: 100%; max-height: 110mm; object-fit: contain; border: 1px solid #bbb; margin: 6pt 0; }
+  .ptable { width: 100%; border-collapse: collapse; }
+  .ptable th, .ptable td { border: 1px solid #ccc; padding: 2pt 4pt; text-align: left; }
+  .ptable th { background: #eee; }
+  .ptable.small { font-size: 8pt; }
+  .ptable tr { break-inside: avoid; }
+  .pnote { font-size: 8.5pt; margin: 2pt 0; color: #333; }
+}
 
 /* ===== レイヤー選択 ===== */
 .popover {
@@ -344,7 +414,7 @@ details.olist .item-main { font-size: 13.5px; }
 .maplibregl-user-location-dot, .maplibregl-user-location-dot::before { background-color: #1a73e8; }
 
 /* シート表示中は地図上の部品を退避 */
-body.sheet-on .fabs, body.sheet-on .legend { bottom: calc(52vh + 12px); }
+body.sheet-on .fabs, body.sheet-on .legend { bottom: calc(52vh + var(--nav-h) + var(--safe-b) + 12px); }
 body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body.sheet-full .chiprow { opacity: 0; pointer-events: none; }
 
 /* ===== PC（幅広画面） ===== */
@@ -369,6 +439,7 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
   .legend { bottom: 34px; left: 16px; max-width: 400px; }
   body.sheet-on .legend { left: 432px; bottom: 16px; }
   .popover { bottom: 34px; right: 80px; }
+  .selbar { top: 76px; right: 64px; }
   .maplibregl-ctrl-top-right { display: block; top: 76px; }
   .maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left { bottom: 0; }
   .maplibregl-ctrl-bottom-right { right: 0; }
@@ -395,6 +466,7 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
 <div id="legend" class="legend"></div>
 
 <div class="fabs">
+  <button id="selBtn" class="fab" aria-label="木を選ぶ"><i data-ic="lasso"></i></button>
   <button id="layerBtn" class="fab" aria-label="地図の表示設定"><i data-ic="layers"></i></button>
   <button id="locBtn" class="fab loc" aria-label="現在地を表示"><i data-ic="locate"></i></button>
 </div>
@@ -420,11 +492,20 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
   <label class="layer-opt"><span>樹高を立体表示（3D）<small>拡大時に表示・2本指で傾き/回転</small></span><span class="switch"><input id="toggle3d" type="checkbox"><span></span></span></label>
 </div>
 
+<!-- 選択ツール -->
+<div id="selPop" class="popover" hidden></div>
+<div id="selBar" class="selbar" hidden><span id="selBarTxt"></span><button id="selOpen">詳細</button><button id="selClear" aria-label="選択を解除">×</button></div>
+<div id="lassoBar" class="addbar lassobar" hidden><span>指でなぞって範囲を囲んでください</span>
+  <span class="seg mini2" id="lassoModes"><button data-m="new" class="on">新規</button><button data-m="add">追加</button><button data-m="remove">除外</button></span>
+  <button id="lassoCancel">やめる</button></div>
+<svg id="lassoSvg" class="lasso" hidden><path id="lassoPath" d=""/></svg>
+
 <!-- 下部ナビ -->
 <nav class="bottomnav" aria-label="メニュー">
   <button data-pane="list"><i data-ic="list"></i>一覧</button>
   <button data-pane="species"><i data-ic="leaf"></i>樹種</button>
   <button data-pane="stats"><i data-ic="chart"></i>分析</button>
+  <button data-pane="ledger"><i data-ic="book"></i>台帳</button>
   <button data-pane="notes"><i data-ic="bookmark"></i>マイメモ<span id="noteCnt" class="cnt" hidden></span></button>
   <button data-pane="about"><i data-ic="info"></i>情報</button>
 </nav>
@@ -496,7 +577,7 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
 
     <!-- 統計 -->
     <div class="pane" id="pane-stats">
-      <div class="segscroll" id="anaTab" style="margin-top:0"><button data-t="sum" class="on">概要</button><button data-t="big">大径木・高木</button><button data-t="co2">CO2・樹冠</button></div>
+      <div class="segscroll" id="anaTab" style="margin-top:0"><button data-t="sum" class="on">概要</button><button data-t="drill">ドリル分析</button><button data-t="rank">上位・下位</button><button data-t="co2">CO2・樹冠</button></div>
       <div class="seg" id="statsScope" style="margin-bottom:12px"><button data-v="all" class="on">絞り込み結果全体</button><button data-v="view">地図の表示範囲</button></div>
       <div id="statsBody"></div>
     </div>
@@ -524,15 +605,20 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
         <li>地図の点をタップすると、その木の情報が表示されます。</li>
         <li>上の検索バーや樹種ボタン、<b>絞り込み</b>ボタンで表示する木を絞れます。</li>
         <li>右下の <b>現在地ボタン</b> で現在地を表示し、「一覧」で近い木から順に見られます。</li>
+        <li>右下の <b>選択ボタン</b> から、指で囲む・上位下位◯%・ドリル分析などで木をまとめて選び、集計・倒木影響範囲の表示・<b>台帳</b>への保存・Excel/PDF出力ができます。</li>
         <li>木ごとに <b>メモ・写真・お気に入り</b> を登録できます（端末内に保存）。</li>
       </ul>
       <h3>出典</h3>
       <p id="sourceText"></p>
       <p>背景地図：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a>（国土地理院）／ © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a></p>
       <h3>分析について</h3>
-      <p>「分析」のCO2推定・樹冠面積は、元データから機械的に算出した参考値です。樹高・枝張・幹周の外れ値は平均・CO2・樹冠の集計から除外しています（判定基準と除外件数は「分析 → CO2・樹冠」の注記に記載）。</p>
+      <p>「分析」「選択中の木」のCO2推定・樹冠面積・倒木影響範囲は、元データから機械的に算出した参考値です。樹高・枝張・幹周の外れ値は平均・CO2・樹冠の集計から除外しています（判定基準と除外件数は「分析 → CO2・樹冠」の注記に記載）。</p>
       <p class="muted small">データは公開時点のもので、現況と異なる場合があります。緊急の危険（倒木など）は道路管理者や警察・消防へ直接連絡してください。</p>
     </div>
+
+    <!-- 選択中の木・植栽台帳 -->
+    <div class="pane" id="pane-selection"></div>
+    <div class="pane" id="pane-ledger"></div>
 
     <!-- 樹木の詳細 -->
     <div class="pane" id="pane-detail"></div>
@@ -542,6 +628,7 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
 <div id="addBar" class="addbar" hidden><span>地図を動かして <b>＋</b> を木の位置に合わせてください</span><button id="addOk">ここに追加</button><button id="addCancel">やめる</button></div>
 <svg id="crosshair" class="crosshair" viewBox="0 0 44 44" hidden aria-hidden="true"><circle cx="22" cy="22" r="9" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M22 2v12M22 30v12M2 22h12M30 22h12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
 <div id="toast" class="toast" hidden role="status"></div>
+<div id="printArea" aria-hidden="true"></div>
 <div id="loading" class="loading">
   <svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="#2f8052"/><circle cx="32" cy="27" r="15" fill="#8fd19e"/><rect x="29.5" y="36" width="5" height="17" rx="2" fill="#f3efe4"/></svg>
   <h1>東京23区 街路樹マップ</h1>
@@ -971,8 +1058,12 @@ window.APP_CONFIG = {
   carbon: { formFactor: { "広": 0.5, "針": 0.45, "イ": 0.5 }, density: { "広": 0.55, "針": 0.40, "イ": 0.45 }, bef: 1.4, root: 0.25, cf: 0.5, dbhGrowthCm: 0.5 },
   // 外れ値の判定基準（上限値、樹種×区分の分布から外れた値の判定）
   outlier: { maxH: 35, maxW: 25, maxG: 600, minGroup: 20, iqrK: 3, medRatio: 3 },
-  // 大径木・高木リストの基準（同じ樹種・区分の上位1%かつ中央値の2倍以上、または幹周300cm以上）
-  bigTree: { pct: 0.99, medRatio: 2, kyoboku: 300, minGroup: 20 },
+  // 同じ樹種の中で比べるときの最小本数（樹種×区分の本数がこれ未満なら樹種全体で比較）
+  compare: { minGroup: 20 },
+  // 倒木影響範囲：半径＝樹高×factor、余裕を見た範囲＝その margin 倍。maxDraw は地図に描く最大本数
+  fall: { factor: 1.0, margin: 1.5, maxDraw: 8000 },
+  // PDF・印刷に載せる樹木一覧の最大行数
+  print: { maxTrees: 500 },
   quickSpecies: ["イチョウ", "サクラ", "ケヤキ", "ハナミズキ", "スズカケノキ", "トウカエデ", "クスノキ", "キンモクセイ", "モミジバフウ", "ユリノキ"],
 };
 
@@ -986,17 +1077,17 @@ window.NoteStore = (function () {
     if (p) return p;
     p = new Promise((res) => {
       try {
-        const r = indexedDB.open(DB, 1);
-        r.onupgradeneeded = () => r.result.createObjectStore(ST, { keyPath: "id" });
+        const r = indexedDB.open(DB, 2);
+        r.onupgradeneeded = () => { for (const st of [ST, "ledgers"]) if (!r.result.objectStoreNames.contains(st)) r.result.createObjectStore(st, { keyPath: "id" }); };
         r.onsuccess = () => res(r.result);
         r.onerror = () => { useMem = true; res(null); };
       } catch (e) { useMem = true; res(null); }
     });
     return p;
   }
-  function tx(db, mode, fn) {
+  function tx(db, mode, fn, store = ST) {
     return new Promise((res, rej) => {
-      const t = db.transaction(ST, mode), r = fn(t.objectStore(ST));
+      const t = db.transaction(store, mode), r = fn(t.objectStore(store));
       t.oncomplete = () => res(r && r.result); t.onerror = () => rej(t.error);
     });
   }
@@ -1009,8 +1100,16 @@ window.NoteStore = (function () {
       await tx(db, "readwrite", (s) => s.put(n)); return n;
     },
     async remove(id) { const db = await open(); if (!db) { mem.delete(id); return; } await tx(db, "readwrite", (s) => s.delete(id)); },
+    // 植栽台帳
+    ledgers: {
+      mem: new Map(),
+      async all() { const db = await open(); return db ? tx(db, "readonly", (s) => s.getAll(), "ledgers") : [...this.mem.values()]; },
+      async put(L) { L.updated = new Date().toISOString(); const db = await open(); if (!db) { this.mem.set(L.id, L); return L; } await tx(db, "readwrite", (s) => s.put(L), "ledgers"); return L; },
+      async remove(id) { const db = await open(); if (!db) { this.mem.delete(id); return; } await tx(db, "readwrite", (s) => s.delete(id), "ledgers"); },
+    },
   };
 })();
+window.LedgerStore = window.NoteStore.ledgers;
 
 /* =====================================================================
  * アプリ本体
@@ -1050,6 +1149,13 @@ window.NoteStore = (function () {
     search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
     leaf: '<path d="M5 19c0-8 5-14 15-15 0 10-6 15-14 15"/><path d="M5 19 13 11"/>',
     back: '<path d="m15 6-6 6 6 6"/>',
+    lasso: '<path d="M7 18c-2.5-1-4-3-4-5.5C3 8 7 5 12 5s9 3 9 7-4 7-9 7c-1 0-2-.1-2.9-.3"/><circle cx="7" cy="19" r="1.6"/>',
+    rank: '<path d="M4 20h4v-6H4zM10 20h4V4h-4zM16 20h4v-9h-4z"/>',
+    drill: '<path d="M3 5h18l-7 8v6l-4 2v-8Z"/>',
+    fall: '<path d="M6 20 18 8"/><circle cx="18.5" cy="6.5" r="3"/><path d="M3 20h18"/><path d="M6 20a14 14 0 0 1 3-11" stroke-dasharray="2 2.5"/>',
+    book: '<path d="M4 4h6a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4Z"/><path d="M20 4h-6a3 3 0 0 0-1 .2"/><path d="M20 4v14h-7"/>',
+    sheet: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M10 3v18"/>',
+    print: '<path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>',
   };
   const ic = (n) => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ""}</svg>`;
   const paintIcons = (root = document) => root.querySelectorAll("i[data-ic]").forEach((el) => { el.outerHTML = ic(el.dataset.ic); });
@@ -1058,14 +1164,14 @@ window.NoteStore = (function () {
   const PHENOLOGY = ["新緑", "開花", "結実", "紅葉・黄葉", "落葉"];
   const PALETTE = ["#2e7d32", "#f9a825", "#c2185b", "#1565c0", "#ef6c00", "#6a1b9a", "#00897b", "#8d6e63", "#d84315", "#5e35b1"];
   const CAT_COLORS = { "高木": "#2e7d32", "中木": "#8bc34a" };
-  const TITLES = { filter: "絞り込み", list: "一覧", species: "樹種一覧", spdetail: "樹種の情報", stats: "分析", notes: "マイメモ", about: "このアプリについて" };
+  const TITLES = { filter: "絞り込み", list: "一覧", species: "樹種一覧", spdetail: "樹種の情報", stats: "分析", selection: "選択中の木", ledger: "植栽台帳", notes: "マイメモ", about: "このアプリについて" };
 
   // ---------- 状態 ----------
   let D, C, N, mask, matchCount = 0;
   let selected = null, pane = null, colorMode = "cat", userLoc = null, addMode = false;
   let topSpecies = [], spCount = new Map();
   const notes = new Map();
-  const F = { q: "", sp: new Set(), ward: "", cat: "", type: "", route: "", hMin: null, hMax: null, gMin: null, gMax: null, onlyNoted: false, big: "" };
+  const F = { q: "", sp: new Set(), ward: "", cat: "", type: "", route: "", hMin: null, hMax: null, gMin: null, gMax: null, onlyNoted: false, onlySel: false };
 
 
   // ---------- 外部ライブラリ（CDNが落ちていたら予備から） ----------
@@ -1095,7 +1201,7 @@ window.NoteStore = (function () {
     const raster = (url, max, attr) => ({ type: "raster", tiles: [url], tileSize: 256, maxzoom: max, attribution: attr });
     map = new maplibregl.Map({
       container: "map", hash: "map", center: CFG.center, zoom: CFG.zoom, maxZoom: 19, minZoom: 8,
-      attributionControl: { compact: true }, dragRotate: false, pitchWithRotate: true, touchPitch: false, maxPitch: 70,
+      attributionControl: { compact: true }, preserveDrawingBuffer: true, dragRotate: false, pitchWithRotate: true, touchPitch: false, maxPitch: 70,
       style: {
         version: 8,
         sources: {
@@ -1154,6 +1260,7 @@ window.NoteStore = (function () {
       map.on("mouseleave", id, () => { map.getCanvas().style.cursor = ""; });
     }
     map.on("click", onMapClick);
+    addSelectionLayers();
   }
 
   function onMapClick(e) {
@@ -1198,6 +1305,8 @@ window.NoteStore = (function () {
     if (colorMode === "g") h = grad("#ffe0b2,#ffb74d,#f57c00,#8d3b00,#3e1a00", "0cm", "幹周 100cm", "400cm");
     if (colorMode === "heat") h = grad("#c5e1a5,#7cb342,#33691e,#1b3d12", "疎", "密度", "密");
     if (notes.size) h += `<span class="lg"><i class="mine"></i>メモ</span>`;
+    if (typeof fallOn !== "undefined" && fallOn) h += `<span class="lg"><i style="background:rgba(239,108,0,.3);border:1px solid #ef6c00"></i>倒木影響範囲</span>`;
+    if (SEL.ids.size) h += `<span class="lg"><i style="border:2px solid #1565c0"></i>選択中</span>`;
     if ($("#toggle3d")?.checked) h += `<span class="lg"><i style="background:#2e7d32;border-radius:2px"></i>柱の高さ＝樹高</span>`;
     if ($("#canopyToggle")?.checked) h += `<span class="lg"><i style="background:rgba(67,160,71,.35);border:1px solid #2e7d32"></i>樹冠（薄い円は推定）</span>`;
     $("#legend").innerHTML = h;
@@ -1224,7 +1333,7 @@ window.NoteStore = (function () {
     if (F.hMax != null) { const v = F.hMax; parts.push(["<=", ["get", "h"], v]); tests.push((i) => (C.h[i] ?? 0) <= v); }
     if (F.gMin != null) { const v = F.gMin; parts.push([">=", ["get", "g"], v]); tests.push((i) => (C.g[i] ?? -1) >= v); }
     if (F.gMax != null) { const v = F.gMax; parts.push(["all", [">=", ["get", "g"], 0], ["<=", ["get", "g"], v]]); tests.push((i) => { const g = C.g[i] ?? -1; return g >= 0 && g <= v; }); }
-    if (F.big) { const f = F.big, ids = []; for (let i = 0; i < N; i++) if (isBig(f, i)) ids.push(i); const set = new Set(ids); parts.push(["in", ["get", "i"], ["literal", ids]]); tests.push((i) => set.has(i)); }
+    if (F.onlySel) { const ids = [...SEL.ids]; parts.push(["in", ["get", "i"], ["literal", ids]]); tests.push((i) => SEL.ids.has(i)); }
     if (F.onlyNoted) { const ids = [...notes.values()].filter((n) => n.tree != null).map((n) => n.tree), set = new Set(ids); parts.push(["in", ["get", "i"], ["literal", ids]]); tests.push((i) => set.has(i)); }
     return { expr: parts.length ? ["all", ...parts] : null, tests };
   }
@@ -1252,7 +1361,7 @@ window.NoteStore = (function () {
     if (pane === "list") renderList();
     if (pane === "stats") renderStats();
   }
-  const filterCount = () => F.sp.size + ["ward", "cat", "type", "route"].filter((k) => F[k] !== "").length + ["hMin", "hMax", "gMin", "gMax"].filter((k) => F[k] != null).length + (F.onlyNoted ? 1 : 0) + (F.big ? 1 : 0);
+  const filterCount = () => F.sp.size + ["ward", "cat", "type", "route"].filter((k) => F[k] !== "").length + ["hMin", "hMax", "gMin", "gMax"].filter((k) => F[k] != null).length + (F.onlyNoted ? 1 : 0) + (F.onlySel ? 1 : 0);
 
   function syncFilterForm() {
     $("#spChips").innerHTML = selectedStd().map((n) => `<span class="chip">${esc(n)}<button data-rm="${esc(n)}" aria-label="外す">×</button></span>`).join("");
@@ -1274,7 +1383,7 @@ window.NoteStore = (function () {
     if (F.hMin != null || F.hMax != null) on(`樹高 ${F.hMin ?? ""}〜${F.hMax ?? ""}m`, "h");
     if (F.gMin != null || F.gMax != null) on(`幹周 ${F.gMin ?? ""}〜${F.gMax ?? ""}cm`, "g");
     if (F.onlyNoted) on("メモの木", "onlyNoted");
-    if (F.big) on(F.big === "g" ? "大径木（幹周）" : "高木（樹高）", "big");
+    if (F.onlySel) on("選択した木のみ", "onlySel");
     const sel = selectedStd();
     CFG.quickSpecies.filter((n) => STD.has(n) && !sel.includes(n)).forEach((n) => {
       const r = topSpecies.indexOf(STD.get(n).idx[0]), c = colorMode === "sp" && r > -1 && r < 10 ? PALETTE[r] : "";
@@ -1298,11 +1407,15 @@ window.NoteStore = (function () {
     if (name === "stats") renderStats();
     if (name === "filter") syncFilterForm();
     if (name === "species") renderSpecies();
+    if (name === "selection") renderSelection();
+    if (name === "ledger") renderLedger();
+    if (name !== "detail") clearFallOne();
     if (name !== "detail") clearSelection();
   }
   function closeSheet() {
     const s = $("#sheet");
     if (s.hidden) return;
+    clearFallOne();
     s.classList.add("closing");
     document.body.classList.remove("sheet-on", "sheet-full");
     $$(".bottomnav button").forEach((b) => b.classList.remove("active"));
@@ -1336,7 +1449,7 @@ window.NoteStore = (function () {
 
   // シートで隠れていない範囲の中心に移動
   function flyToTree(lon, lat, zoom) {
-    const sheetH = !$("#sheet").hidden && !isWide() ? $("#sheet").getBoundingClientRect().height : 0;
+    const sheetH = !$("#sheet").hidden && !isWide() ? innerHeight - $("#sheet").getBoundingClientRect().top : 0;
     const sheetW = !$("#sheet").hidden && isWide() ? 416 : 0;
     map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), zoom || 17), offset: [sheetW / 2, -sheetH / 2], duration: 900 });
   }
@@ -1404,6 +1517,7 @@ window.NoteStore = (function () {
       ${spTags(C.sp[i], true)}
       <div class="tiles">${tile("樹高", C.h[i], "m")}${tile("幹周", C.g[i], "cm")}${tile("枝張", C.w[i], "m")}</div>
       ${treeEstimateHTML(i)}
+      ${fallDetailHTML(i)}
       ${actionsRow(note, lat, lon, true)}
       <details class="attrs"><summary>すべての属性</summary><table>
         ${row("樹木ID", "#" + i)}${row("樹種", esc(sp))}${row("区分", esc(D.cat[C.cat[i]]))}
@@ -1489,6 +1603,7 @@ window.NoteStore = (function () {
       const act = btn.dataset.act;
       if (act === "samesp" && typeof selected === "number") { const nm = SPI[C.sp[selected]].std; F.sp = new Set(); addStd(nm); applyFilters(); toast(`「${nm}」だけを表示しています`); }
       if (act === "spinfo") { openSpeciesDetail(btn.dataset.std, "detail"); return; }
+      if (act === "fallshow" && typeof selected === "number") { showFallOne(selected, $("#fallDir").value); return; }
       if (act === "memo") $("#noteBox").scrollIntoView({ behavior: "smooth" });
       if (act === "share") share(note);
       if (act === "fav") {
@@ -1578,8 +1693,8 @@ window.NoteStore = (function () {
   }
 
   // ---------- 木の追加（画面中央の十字で位置指定） ----------
-  function startAdd() { closeSheet(); addMode = true; document.body.classList.add("adding"); $("#addBar").hidden = false; $("#crosshair").hidden = false; }
-  function stopAdd() { addMode = false; document.body.classList.remove("adding"); $("#addBar").hidden = true; $("#crosshair").hidden = true; }
+  function startAdd() { closeSheet(); addMode = true; document.body.classList.add("adding"); $("#addBar").hidden = false; $("#crosshair").removeAttribute("hidden"); }
+  function stopAdd() { addMode = false; document.body.classList.remove("adding"); $("#addBar").hidden = true; $("#crosshair").setAttribute("hidden", ""); }
   async function confirmAdd() {
     const c = map.getCenter(); stopAdd();
     const n = { id: "u-" + Date.now().toString(36), tree: null, lon: +c.lng.toFixed(7), lat: +c.lat.toFixed(7), sp: "", date: new Date().toISOString().slice(0, 10) };
@@ -1647,7 +1762,7 @@ window.NoteStore = (function () {
       const k = b.dataset.off;
       if (k === "std") removeStd(b.dataset.val);
       else if (k === "h") { F.hMin = F.hMax = null; } else if (k === "g") { F.gMin = F.gMax = null; }
-      else if (k === "onlyNoted") F.onlyNoted = false; else if (k === "big") F.big = ""; else F[k] = "";
+      else if (k === "onlyNoted") F.onlyNoted = false; else if (k === "onlySel") F.onlySel = false; else F[k] = "";
       applyFilters(); if (pane === "filter") syncFilterForm();
     };
 
@@ -1662,7 +1777,7 @@ window.NoteStore = (function () {
     const numChange = debounce(() => { F.hMin = readNum("#hMin"); F.hMax = readNum("#hMax"); F.gMin = readNum("#gMin"); F.gMax = readNum("#gMax"); applyFilters(); }, 300);
     for (const id of ["#hMin", "#hMax", "#gMin", "#gMax"]) $(id).addEventListener("input", numChange);
     $("#onlyNoted").onchange = (e) => { F.onlyNoted = e.target.checked; applyFilters(); };
-    $("#resetBtn").onclick = () => { Object.assign(F, { sp: new Set(), ward: "", cat: "", type: "", route: "", hMin: null, hMax: null, gMin: null, gMax: null, onlyNoted: false, big: "" }); syncFilterForm(); applyFilters(); };
+    $("#resetBtn").onclick = () => { Object.assign(F, { sp: new Set(), ward: "", cat: "", type: "", route: "", hMin: null, hMax: null, gMin: null, gMax: null, onlyNoted: false, onlySel: false }); syncFilterForm(); applyFilters(); };
     $("#applyBtn").onclick = () => { closeSheet(); fitResults(true); };
 
     // ナビ・シート
@@ -1989,7 +2104,7 @@ window.NoteStore = (function () {
     if (!C) return;
     const idx = scopeIdx();
     if (!idx.length) { $("#statsBody").innerHTML = `<p class="empty">${ic("chart")}該当する木がありません。</p>`; return; }
-    $("#statsBody").innerHTML = anaTab === "co2" ? co2HTML(idx) : anaTab === "big" ? bigHTML(idx) : summaryHTML(idx);
+    $("#statsBody").innerHTML = anaTab === "co2" ? co2HTML(idx) : anaTab === "drill" ? drillHTML(idx) : anaTab === "rank" ? rankHTML(idx) : summaryHTML(idx);
   }
 
   function summaryHTML(idx) {
@@ -2064,11 +2179,6 @@ window.NoteStore = (function () {
       const t = e.target.closest("[data-tree]"); if (t) { selectTree(+t.dataset.tree, true); return; }
     });
     $("#statsBody").addEventListener("click", (e) => {
-      const bb = e.target.closest("#bigBy button"); if (bb) { bigBy = bb.dataset.v; renderStats(); return; }
-      const bs = e.target.closest("#bigSort button"); if (bs) { bigSort = bs.dataset.v; renderStats(); return; }
-      const a = e.target.closest("[data-act]"); if (!a) return;
-      if (a.dataset.act === "bigcsv") bigCsv();
-      if (a.dataset.act === "bigonly") { F.big = bigBy; applyFilters(); closeSheet(); fitResults(true); }
     });
     $("#toggle3d").onchange = (e) => set3D(e.target.checked);
     $("#canopyToggle").onchange = (e) => {
@@ -2099,13 +2209,13 @@ window.NoteStore = (function () {
   }
   function distFor(f, i) {
     const std = SPI[C.sp[i]].std, k1 = std + "|" + C.cat[i], a1 = DIST[f].get(k1);
-    if (a1 && a1.length >= CFG.bigTree.minGroup) return { arr: a1, key: k1, label: `${std}（${D.cat[C.cat[i]]}）` };
+    if (a1 && a1.length >= CFG.compare.minGroup) return { arr: a1, key: k1, label: `${std}（${D.cat[C.cat[i]]}）` };
     const a2 = DIST[f].get(std);
     return a2 ? { arr: a2, key: std, label: std } : null;
   }
   function groupStats(f, d) {
     const ck = f + "|" + d.key;
-    if (!distCache.has(ck)) distCache.set(ck, { med: quantile(d.arr, .5), p95: quantile(d.arr, CFG.bigTree.pct) });
+    if (!distCache.has(ck)) distCache.set(ck, { med: quantile(d.arr, .5) });
     return distCache.get(ck);
   }
   // v より大きい値の割合（＝上位◯%）
@@ -2139,67 +2249,9 @@ window.NoteStore = (function () {
   function rankSectionHTML(i) {
     const d = distFor("h", i) || distFor("g", i);
     if (!d) return "";
-    const big = bigReason(i);
     return `<div class="sec-title">同じ樹種の中での位置 <span class="muted small">${esc(d.label)}・${fmt(d.arr.length)}本と比較</span></div>
-      ${big ? `<div class="bigbadge">${ic("tree")}${esc(big)}</div>` : ""}
       ${histSVG("g", i)}${histSVG("h", i)}${histSVG("w", i)}
       <p class="anote">▼がこの木の位置です。外れ値は比較から除外しています。</p>`;
-  }
-
-  // =====================================================================
-  // 大径木リスト
-  // =====================================================================
-  function isBig(f, i) {
-    const v = val(f, i); if (v == null) return false;
-    if (f === "g" && v >= CFG.bigTree.kyoboku) return true;
-    const d = distFor(f, i); if (!d || d.arr.length < CFG.bigTree.minGroup) return false;
-    const st = groupStats(f, d);
-    return v >= st.p95 && v >= st.med * CFG.bigTree.medRatio;
-  }
-  function bigReason(i) {
-    const r = [];
-    if (isBig("g", i)) r.push(val("g", i) >= CFG.bigTree.kyoboku ? "大径木（幹周300cm以上）" : "大径木");
-    if (isBig("h", i)) r.push("高木");
-    return r.length ? r.join("・") + "リストに掲載されている木です" : "";
-  }
-  let bigBy = "g", bigSort = "value";
-  function bigList(f, idx) {
-    const out = [];
-    for (const i of idx) if (isBig(f, i)) {
-      const d = distFor(f, i), v = val(f, i), med = d ? groupStats(f, d).med : null;
-      out.push({ i, v, ratio: med ? v / med : 0, top: d ? topShare(d.arr, v) : 0 });
-    }
-    return out.sort(bigSort === "ratio" ? (a, b) => b.ratio - a.ratio || b.v - a.v : (a, b) => b.v - a.v || b.ratio - a.ratio);
-  }
-  function bigHTML(idx) {
-    const f = bigBy, L = bigList(f, idx), unit = FIELD[f].unit, B = CFG.bigTree;
-    const nKyo = f === "g" ? L.filter((x) => x.v >= B.kyoboku).length : 0;
-    const nSp = new Set(L.map((x) => SPI[C.sp[x.i]].std)).size;
-    return `<div class="seg" id="bigBy" style="margin-bottom:10px"><button data-v="g" class="${f === "g" ? "on" : ""}">幹周が大きい木</button><button data-v="h" class="${f === "h" ? "on" : ""}">樹高が高い木</button></div>
-      <div class="kpis">
-        <div class="kpi"><span>該当</span><b>${fmt(L.length)}<small>本</small></b></div>
-        <div class="kpi"><span>樹種数</span><b>${fmt(nSp)}</b></div>
-        <div class="kpi"><span>${f === "g" ? "幹周300cm以上" : "最も高い木"}</span><b>${f === "g" ? fmt(nKyo) + "<small>本</small>" : (L.length ? Math.max(...L.map((x) => x.v)) + "<small>m</small>" : "-")}</b></div>
-      </div>
-      <div class="btnrow"><button class="btn" data-act="bigonly">${ic("pin")}地図でこれらだけ表示</button><button class="btn sub" data-act="bigcsv">CSV保存</button></div>
-      <div class="listhead"><span>${fmt(L.length)}本${L.length > 200 ? "（上位200本を表示）" : ""}</span>
-        <span class="seg mini2" id="bigSort"><button data-v="value" class="${bigSort === "value" ? "on" : ""}">${f === "g" ? "太い順" : "高い順"}</button><button data-v="ratio" class="${bigSort === "ratio" ? "on" : ""}">樹種内で際立つ順</button></span></div>
-      <ol class="list">${L.slice(0, 200).map((x, k) => { const sp = SPI[C.sp[x.i]].std; return `<li><button class="item" data-tree="${x.i}">
-        <span class="rank">${k + 1}</span><span class="avatar" style="background:${treeColor(x.i)}">${esc(sp[0])}</span>
-        <span class="item-txt"><span class="item-main">${esc(sp)} ${f === "g" && x.v >= B.kyoboku ? '<span class="tag red">300cm以上</span>' : ""}</span>
-        <span class="item-sub">${esc(D.ward[C.ward[x.i]])}・${esc(roadName(x.i))}</span></span>
-        <span class="item-end"><span class="sp-cnt">${x.v}${unit}</span><span class="sp-share">中央値の${x.ratio.toFixed(1)}倍</span></span></button></li>`; }).join("")
-        || `<li class="empty">${ic("tree")}この範囲には該当する木がありません。</li>`}</ol>
-      <div class="notebox"><b>掲載の基準</b><br>
-        同じ樹種・区分（高木／中木）の木と比べて、${FIELD[f].label}が上位${Math.round((1 - B.pct) * 100)}%に入り、かつ中央値の${B.medRatio}倍以上の木を掲載しています${f === "g" ? `。あわせて、幹周${B.kyoboku}cm以上の木はすべて掲載しています（環境省の巨樹・巨木林調査で使われる「地上130cmの幹周300cm以上」を参考にした目安。データ上の測定高さは不明です）` : ""}。同じ樹種・区分の本数が${B.minGroup}本未満の場合は比較の対象外です。基準は index.html の APP_CONFIG.bigTree で変更できます。</div>
-      <div class="notebox warnbox"><b>外れ値の除外について</b><br>${outlierNote()}</div>`;
-  }
-  function bigCsv() {
-    const L = bigList(bigBy, scopeIdx()), unit = FIELD[bigBy].unit;
-    if (!L.length) { toast("該当する木がありません"); return; }
-    const head = ["順位", "樹木ID", "樹種", "区分", `${FIELD[bigBy].label}(${unit})`, "中央値に対する倍率", "同じ樹種での順位", "樹高(m)", "幹周(cm)", "枝張(m)", "行政区", "路線名", "通称道路名", "経度", "緯度"];
-    const rows = L.map((x, k) => [k + 1, x.i, SPI[C.sp[x.i]].std, D.cat[C.cat[x.i]], x.v, x.ratio.toFixed(2), fmtTop(x.top), C.h[x.i], C.g[x.i], C.w[x.i], D.ward[C.ward[x.i]], D.route[C.route[x.i]], C.road[x.i] >= 0 ? D.road[C.road[x.i]] : "", C.x[x.i], C.y[x.i]]);
-    download(`big-trees-${bigBy === "g" ? "girth" : "height"}-${stamp()}.csv`, "﻿" + [head, ...rows].map((r) => r.map(csvCell).join(",")).join("\r\n"), "text/csv");
   }
 
   // =====================================================================
@@ -2239,6 +2291,610 @@ window.NoteStore = (function () {
     renderLegend();
   }
 
+  // =====================================================================
+  // 第1段階：選択・ドリル・上位下位・倒木影響範囲・台帳・出力
+  // =====================================================================
+  const EMPTY_FC = { type: "FeatureCollection", features: [] };
+  const M_LAT = 111320, M_LON = 111320 * Math.cos(35.69 * Math.PI / 180);
+  function circlePoly(lon, lat, r, n = 40) {
+    const ring = [];
+    for (let k = 0; k <= n; k++) { const a = k / n * 2 * Math.PI; ring.push([lon + Math.sin(a) * r / M_LON, lat + Math.cos(a) * r / M_LAT]); }
+    return { type: "Polygon", coordinates: [ring] };
+  }
+  function bandPoly(lon, lat, len, width, bearing) {
+    const b = bearing * Math.PI / 180, ux = Math.sin(b), uy = Math.cos(b), px = uy, py = -ux, hw = width / 2;
+    const pt = (along, side) => [lon + (ux * along + px * side) / M_LON, lat + (uy * along + py * side) / M_LAT];
+    return { type: "Polygon", coordinates: [[pt(0, -hw), pt(len, -hw), pt(len, hw), pt(0, hw), pt(0, -hw)]] };
+  }
+  const fallR = (i) => { const h = val("h", i); return h == null ? null : h * CFG.fall.factor; };
+
+  // ---------- 選択中の木 ----------
+  const SEL = { ids: new Set(), label: "", ledgerId: null, area: null };
+  function setSelection(ids, label, opts = {}) {
+    map.removeFeatureState({ source: "trees" });
+    SEL.ids = new Set(ids); SEL.label = label || ""; SEL.ledgerId = opts.ledgerId || null; SEL.area = opts.area || null;
+    SEL.ids.forEach((i) => map.setFeatureState({ source: "trees", id: i }, { sel: true }));
+    map.getSource("selarea").setData(SEL.area ? { type: "FeatureCollection", features: [{ type: "Feature", geometry: SEL.area, properties: {} }] } : EMPTY_FC);
+    if (!SEL.ids.size) F.onlySel = false;
+    if (F.onlySel || !SEL.ids.size) applyFilters();
+    if (fallOn) rebuildFall();
+    updateSelBar();
+    if (pane === "selection") renderSelection();
+  }
+  function updateSelBar() {
+    const n = SEL.ids.size;
+    $("#selBar").hidden = !n;
+    $("#selBarTxt").innerHTML = `<b>${fmt(n)}</b> 本を選択中${SEL.ledgerId ? `<span class="muted">・${esc(ledgerName(SEL.ledgerId))}</span>` : ""}`;
+    $("#selBtn").classList.toggle("active", n > 0);
+  }
+  const selIdx = () => [...SEL.ids].sort((a, b) => a - b);
+
+  function summarize(idx) {
+    let hs = 0, hn = 0, gs = 0, gn = 0, stock = 0, ann = 0, nco2 = 0, area = 0, fall = 0;
+    const sp = new Map(), ward = new Map();
+    for (const i of idx) {
+      const s = SPI[C.sp[i]].std; sp.set(s, (sp.get(s) || 0) + 1); ward.set(C.ward[i], (ward.get(C.ward[i]) || 0) + 1);
+      const h = val("h", i); if (h != null) { hs += h; hn++; }
+      const g = val("g", i); if (g != null) { gs += g; gn++; }
+      const st = co2Stock(i); if (st != null) { stock += st; ann += co2Annual(i); nco2++; }
+      area += canopyArea(i);
+      const r = fallR(i); if (r) fall += Math.PI * r * r;
+    }
+    return { n: idx.length, sp, ward, avgH: hn ? hs / hn : null, avgG: gn ? gs / gn : null, stock, ann, nco2, area, fall };
+  }
+  function kpiHTML(s) {
+    return `<div class="kpis">
+      <div class="kpi"><span>本数</span><b>${fmt(s.n)}</b></div>
+      <div class="kpi"><span>樹種数</span><b>${fmt(s.sp.size)}</b></div>
+      <div class="kpi"><span>平均樹高</span><b>${s.avgH != null ? s.avgH.toFixed(1) : "-"}<small>m</small></b></div>
+      <div class="kpi"><span>平均幹周</span><b>${s.avgG != null ? Math.round(s.avgG) : "-"}<small>cm</small></b></div>
+      <div class="kpi"><span>CO2貯留量</span><b>${fmtT(s.stock)}<small>t</small></b></div>
+      <div class="kpi"><span>年間CO2吸収</span><b>${fmtT(s.ann)}<small>t/年</small></b></div>
+      <div class="kpi"><span>樹冠投影面積</span><b>${fmt(Math.round(s.area))}<small>m²</small></b></div>
+      <div class="kpi"><span>倒木影響範囲</span><b>${fmt(Math.round(s.fall))}<small>m²</small></b></div>
+      <div class="kpi"><span>CO2推定対象</span><b>${fmt(s.nco2)}<small>本</small></b></div>
+    </div>`;
+  }
+
+  function renderSelection() {
+    const el = $("#pane-selection");
+    if (!SEL.ids.size) {
+      el.innerHTML = `<div class="empty">${ic("lasso")}まだ木を選択していません。</div>
+        <div class="toolgrid">${selToolButtons()}</div>`;
+      return;
+    }
+    const idx = selIdx(), s = summarize(idx);
+    const top = [...s.sp.entries()].sort((a, b) => b[1] - a[1]);
+    el.innerHTML = `
+      <div class="selhead"><div><div class="sel-label">${esc(SEL.label || "選択中の木")}</div>
+        ${SEL.ledgerId ? `<div class="muted small">台帳「${esc(ledgerName(SEL.ledgerId))}」を開いています</div>` : ""}</div>
+        <button class="btn danger" data-act="selclear" style="min-height:34px">解除</button></div>
+      ${kpiHTML(s)}
+      <p class="anote">平均・CO2・樹冠・倒木影響範囲は外れ値を除いて計算しています。倒木影響範囲は各木の樹高を半径とする円の面積の合計（重なりを含む）です。</p>
+      <div class="btnrow">
+        <button class="btn sub" data-act="selonly">${F.onlySel ? "すべての木を表示" : "選択した木だけ表示"}</button>
+        <button class="btn sub" data-act="selfit">選択範囲へ移動</button>
+      </div>
+      <div class="btnrow">
+        <button class="btn ${fallOn ? "" : "sub"}" data-act="fall">${ic("fall")}${fallOn ? "倒木影響範囲を隠す" : "倒木影響範囲を表示"}</button>
+      </div>
+      ${fallOn ? `<div id="fallStat" class="anote">${fallStatText()}</div>` : ""}
+      <div class="sec-title">保存・出力</div>
+      <div class="btnrow">
+        <button class="btn" data-act="ledgersave">${ic("book")}${SEL.ledgerId ? "台帳を上書き保存" : "台帳に保存"}</button>
+        ${SEL.ledgerId ? `<button class="btn sub" data-act="ledgersavenew">別の台帳として保存</button>` : ""}
+      </div>
+      <div class="btnrow">
+        <button class="btn sub" data-act="xlsx">${ic("sheet")}Excel</button>
+        <button class="btn sub" data-act="pdf">${ic("print")}PDF</button>
+        <button class="btn sub" data-act="csv">CSV</button>
+      </div>
+      <div class="sec-title">樹種の内訳</div>${barsHTML(top.slice(0, 12).map(([k, c]) => [k, k, c]), "std")}
+      ${s.ward.size > 1 ? `<div class="sec-title">区の内訳</div>${barsHTML([...s.ward.entries()].sort((a, b) => b[1] - a[1]).map(([k, c]) => [D.ward[k], k, c]), "")}` : ""}
+      <div class="sec-title">選択中の木 <span class="muted small">${idx.length > 200 ? "先頭200本" : ""}</span></div>
+      <ol class="list">${idx.slice(0, 200).map((i) => treeItem(i, "")).join("")}</ol>`;
+  }
+  function selToolButtons() {
+    return `<button class="tool" data-tool="lasso">${ic("lasso")}<b>指で囲んで選択</b><span>地図上で範囲をなぞる</span></button>
+      <button class="tool" data-tool="rank">${ic("rank")}<b>上位・下位◯%</b><span>幹周・樹高・枝張で選ぶ</span></button>
+      <button class="tool" data-tool="drill">${ic("drill")}<b>ドリル分析</b><span>区→路線→樹種などで絞る</span></button>
+      <button class="tool" data-tool="filter">${ic("filter")}<b>絞り込み結果すべて</b><span>今の条件に合う木</span></button>
+      <button class="tool" data-tool="view">${ic("layers")}<b>表示範囲の木</b><span>地図に見えている木</span></button>
+      <button class="tool" data-tool="ledger">${ic("book")}<b>台帳から開く</b><span>保存した選択を読み込む</span></button>`;
+  }
+  function runTool(t) {
+    $("#selPop").hidden = true;
+    if (t === "lasso") startLasso();
+    if (t === "rank") { anaTab = "rank"; openSheet("stats"); syncAnaTab(); renderStats(); }
+    if (t === "drill") { anaTab = "drill"; openSheet("stats"); syncAnaTab(); renderStats(); }
+    if (t === "ledger") openSheet("ledger");
+    if (t === "filter") {
+      if (matchCount > 50000 && !confirm(`${fmt(matchCount)}本を選択します。よろしいですか？`)) return;
+      const ids = []; for (let i = 0; i < N; i++) if (mask[i]) ids.push(i);
+      setSelection(ids, filterCount() || F.q ? "絞り込み結果" : "すべての木"); openSheet("selection");
+    }
+    if (t === "view") {
+      const b = map.getBounds(), ids = []; for (let i = 0; i < N; i++) if (mask[i] && inView(i, b)) ids.push(i);
+      setSelection(ids, "地図の表示範囲"); openSheet("selection");
+    }
+  }
+  const syncAnaTab = () => $$("#anaTab button").forEach((x) => x.classList.toggle("on", x.dataset.t === anaTab));
+
+  function fitIds(ids) {
+    if (!ids.length) return;
+    let x0 = 180, x1 = -180, y0 = 90, y1 = -90;
+    for (const i of ids) { const x = C.x[i], y = C.y[i]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    const sheetOpen = !$("#sheet").hidden;
+    const pad = isWide() ? { top: 90, bottom: 60, left: sheetOpen ? 440 : 60, right: 80 } : { top: 130, bottom: sheetOpen ? innerHeight * .55 : 140, left: 30, right: 70 };
+    map.fitBounds([[x0, y0], [x1, y1]], { padding: pad, maxZoom: 18, duration: 900 });
+  }
+
+  // ---------- 指で囲んで選択 ----------
+  let lassoMode = "new", lassoPts = null;
+  function startLasso() {
+    closeSheet(); document.body.classList.add("lassoing");
+    $("#lassoBar").hidden = false; $("#lassoSvg").removeAttribute("hidden"); $("#lassoPath").setAttribute("d", "");
+    $$("#lassoModes button").forEach((b) => b.classList.toggle("on", b.dataset.m === lassoMode));
+    $$("#lassoModes button").forEach((b) => b.disabled = !SEL.ids.size && b.dataset.m !== "new");
+  }
+  function stopLasso() { document.body.classList.remove("lassoing"); $("#lassoBar").hidden = true; $("#lassoSvg").setAttribute("hidden", ""); lassoPts = null; }
+  function initLasso() {
+    const svg = $("#lassoSvg");
+    svg.addEventListener("pointerdown", (e) => { lassoPts = [[e.clientX, e.clientY]]; svg.setPointerCapture?.(e.pointerId); e.preventDefault(); });
+    svg.addEventListener("pointermove", (e) => {
+      if (!lassoPts) return;
+      const l = lassoPts[lassoPts.length - 1];
+      if (Math.hypot(e.clientX - l[0], e.clientY - l[1]) < 4) return;
+      lassoPts.push([e.clientX, e.clientY]);
+      $("#lassoPath").setAttribute("d", "M" + lassoPts.map((p) => p.join(" ")).join(" L") + " Z");
+    });
+    const end = () => {
+      if (!lassoPts) return;
+      const pts = lassoPts; lassoPts = null;
+      if (pts.length < 4) { toast("もう少し大きく囲んでください"); return; }
+      const rect = map.getCanvas().getBoundingClientRect();
+      const ring = pts.map(([x, y]) => { const ll = map.unproject([x - rect.left, y - rect.top]); return [ll.lng, ll.lat]; });
+      ring.push(ring[0]);
+      finishLasso(ring);
+    };
+    svg.addEventListener("pointerup", end); svg.addEventListener("pointercancel", end);
+    $("#lassoModes").onclick = (e) => { const b = e.target.closest("button"); if (!b || b.disabled) return; lassoMode = b.dataset.m; $$("#lassoModes button").forEach((x) => x.classList.toggle("on", x === b)); };
+    $("#lassoCancel").onclick = stopLasso;
+  }
+  function pointInRing(x, y, ring) {
+    let inside = false;
+    for (let a = 0, b = ring.length - 1; a < ring.length; b = a++) {
+      const [xa, ya] = ring[a], [xb, yb] = ring[b];
+      if ((ya > y) !== (yb > y) && x < (xb - xa) * (y - ya) / (yb - ya) + xa) inside = !inside;
+    }
+    return inside;
+  }
+  function finishLasso(ring) {
+    let x0 = 180, x1 = -180, y0 = 90, y1 = -90;
+    for (const [x, y] of ring) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    const hit = [];
+    for (let i = 0; i < N; i++) {
+      const x = C.x[i], y = C.y[i];
+      if (!mask[i] || x < x0 || x > x1 || y < y0 || y > y1) continue;
+      if (pointInRing(x, y, ring)) hit.push(i);
+    }
+    stopLasso();
+    let ids = hit, label = "囲んだ範囲";
+    if (lassoMode === "add") { ids = [...new Set([...SEL.ids, ...hit])]; label = (SEL.label || "選択") + "＋囲んだ範囲"; }
+    if (lassoMode === "remove") { const h = new Set(hit); ids = [...SEL.ids].filter((i) => !h.has(i)); label = (SEL.label || "選択") + "−囲んだ範囲"; }
+    setSelection(ids, label, { area: lassoMode === "new" ? { type: "Polygon", coordinates: [ring] } : null, ledgerId: lassoMode === "new" ? null : SEL.ledgerId });
+    toast(`${fmt(hit.length)} 本が範囲内です（選択中 ${fmt(ids.length)} 本）`);
+    openSheet("selection");
+  }
+
+  // ---------- 上位・下位◯% ----------
+  const RK = { f: "g", dir: "top", pct: 5, base: "species" };
+  const bottomShare = (arr, v) => { let lo = 0, hi = arr.length; while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m] < v) lo = m + 1; else hi = m; } return lo / arr.length; };
+  function rankCompute(idx) {
+    const { f, dir, base } = RK, p = RK.pct / 100, out = []; let skipped = 0, threshold = null;
+    if (base === "species") {
+      for (const i of idx) {
+        const v = val(f, i); if (v == null) continue;
+        const d = distFor(f, i); if (!d || d.arr.length < CFG.compare.minGroup) { skipped++; continue; }
+        const sh = dir === "top" ? topShare(d.arr, v) : bottomShare(d.arr, v);
+        if (sh < p) out.push({ i, v, sh });
+      }
+    } else {
+      const vals = []; for (const i of idx) { const v = val(f, i); if (v != null) vals.push([v, i]); }
+      vals.sort((a, b) => dir === "top" ? b[0] - a[0] : a[0] - b[0]);
+      const k = Math.max(1, Math.ceil(vals.length * p));
+      if (vals.length) {
+        threshold = vals[Math.min(k, vals.length) - 1][0];
+        for (const [v, i] of vals) { if (dir === "top" ? v < threshold : v > threshold) break; out.push({ i, v, sh: null }); }
+      }
+    }
+    out.sort((a, b) => dir === "top" ? b.v - a.v : a.v - b.v);
+    return { out, skipped, threshold };
+  }
+  function rankHTML(idx) {
+    const { out, skipped, threshold } = rankCompute(idx), f = RK.f, unit = FIELD[f].unit;
+    const seg = (id, key, opts) => `<div class="seg" data-rk="${key}" style="margin-bottom:8px">${opts.map(([v, l]) => `<button data-v="${v}" class="${String(RK[key]) === String(v) ? "on" : ""}">${l}</button>`).join("")}</div>`;
+    const cond = `${FIELD[f].label}が${RK.base === "species" ? "同じ樹種・区分の中で" : "対象全体の中で"}${RK.dir === "top" ? "上位" : "下位"}${RK.pct}%`;
+    return `${seg("rkF", "f", [["g", "幹周"], ["h", "樹高"], ["w", "枝張"]])}
+      ${seg("rkD", "dir", [["top", "上位（大きい）"], ["bottom", "下位（小さい）"]])}
+      ${seg("rkB", "base", [["species", "同じ樹種の中で"], ["all", "対象全体の中で"]])}
+      <div class="pctrow"><span class="lbl">割合</span>${[1, 5, 10, 25].map((v) => `<button class="pchip${RK.pct === v ? " on" : ""}" data-pct="${v}">${v}%</button>`).join("")}
+        <input id="rkPct" class="inp" type="number" min="0.1" max="100" step="0.1" inputmode="decimal" value="${RK.pct}"><span>%</span></div>
+      <div class="rk-sum"><b>${fmt(out.length)}</b> 本が該当 <span class="muted small">（${esc(cond)}${threshold != null ? `：${RK.dir === "top" ? "≥" : "≤"} ${threshold}${unit}` : ""}）</span></div>
+      <div class="btnrow"><button class="btn" data-act="rksel"${out.length ? "" : " disabled"}>${ic("lasso")}この${fmt(out.length)}本を選択</button></div>
+      <ol class="list">${out.slice(0, 150).map((x, k) => { const sp = SPI[C.sp[x.i]].std; return `<li><button class="item" data-tree="${x.i}">
+        <span class="rank">${k + 1}</span><span class="avatar" style="background:${treeColor(x.i)}">${esc(sp[0])}</span>
+        <span class="item-txt"><span class="item-main">${esc(sp)}</span><span class="item-sub">${esc(D.ward[C.ward[x.i]])}・${esc(roadName(x.i))}</span></span>
+        <span class="item-end"><span class="sp-cnt">${x.v}${unit}</span>${x.sh != null ? `<span class="sp-share">同樹種の${RK.dir === "top" ? fmtTop(x.sh) : "下位" + (x.sh * 100).toFixed(1) + "%"}</span>` : ""}</span></button></li>`; }).join("")
+        || `<li class="empty">${ic("rank")}該当する木がありません。</li>`}</ol>
+      ${out.length > 150 ? `<p class="muted small">先頭150本を表示しています。すべては「選択」して一覧・出力できます。</p>` : ""}
+      <div class="notebox"><b>注記</b><br>対象は現在の絞り込み条件（と「地図の表示範囲」を選んだ場合はその範囲）に含まれる木です。「同じ樹種の中で」は23区全体の同じ樹種・区分（${CFG.compare.minGroup}本以上）の分布と比べた順位で、本数が足りない樹種の木（${fmt(skipped)}本）は対象外です。値のない木と外れ値は除外しています。</div>
+      <div class="notebox warnbox"><b>外れ値の除外について</b><br>${outlierNote()}</div>`;
+  }
+
+  // ---------- ドリル分析 ----------
+  const HCLS = [[0, 3, "3m未満"], [3, 6, "3〜6m"], [6, 10, "6〜10m"], [10, 15, "10〜15m"], [15, 1e9, "15m以上"]];
+  const GCLS = [[0, 30, "30cm未満"], [30, 60, "30〜60cm"], [60, 100, "60〜100cm"], [100, 200, "100〜200cm"], [200, 1e9, "200cm以上"]];
+  const cls = (tbl, v) => v == null ? "データなし・外れ値" : tbl.find(([a, b]) => v >= a && v < b)[2];
+  const DIM = {
+    ward: { label: "区", key: (i) => D.ward[C.ward[i]], order: (k) => wardPos(k) },
+    route: { label: "路線", key: (i) => D.route[C.route[i]] },
+    road: { label: "通称道路名", key: (i) => C.road[i] >= 0 ? D.road[C.road[i]] : "（名称なし）" },
+    type: { label: "道路種別", key: (i) => D.type[C.type[i]] },
+    sp: { label: "樹種", key: (i) => SPI[C.sp[i]].std },
+    genus: { label: "属", key: (i) => { const g = SPI[C.sp[i]].genus; return g && g !== "-" ? g : "属不明"; } },
+    fam: { label: "科", key: (i) => SPI[C.sp[i]].fam, order: (k) => { const p = FAM_ORDER.indexOf(k); return p < 0 ? 999 : p; } },
+    cat: { label: "区分", key: (i) => D.cat[C.cat[i]] },
+    leaf: { label: "常緑・落葉", key: (i) => LEAF[SPI[C.sp[i]].leaf] },
+    hcls: { label: "樹高", key: (i) => cls(HCLS, val("h", i)), order: (k) => { const p = HCLS.findIndex((c) => c[2] === k); return p < 0 ? 99 : p; } },
+    gcls: { label: "幹周", key: (i) => cls(GCLS, val("g", i)), order: (k) => { const p = GCLS.findIndex((c) => c[2] === k); return p < 0 ? 99 : p; } },
+  };
+  const DRILLS = [
+    ["ward,route,sp", "区 → 路線 → 樹種"], ["fam,genus,sp", "科 → 属 → 樹種"], ["hcls,fam,sp", "樹高 → 科 → 樹種"],
+    ["gcls,sp,ward", "幹周 → 樹種 → 区"], ["cat,leaf,sp", "区分 → 常緑落葉 → 樹種"], ["type,route,road", "道路種別 → 路線 → 通称道路名"],
+  ];
+  const DR = { preset: DRILLS[0][0], path: [], sort: "count" };
+  function drillIdx(idx) {
+    const dims = DR.preset.split(",");
+    return idx.filter((i) => DR.path.every((v, k) => DIM[dims[k]].key(i) === v));
+  }
+  function drillHTML(idx) {
+    const dims = DR.preset.split(","), level = DR.path.length, cur = drillIdx(idx);
+    const last = level >= dims.length;
+    const crumbs = [`<button data-crumb="0">全体</button>`].concat(DR.path.map((v, k) => `<button data-crumb="${k + 1}">${esc(v)}</button>`)).join('<span class="sep">›</span>');
+    let rows = "";
+    if (!last) {
+      const d = DIM[dims[level]], g = new Map();
+      for (const i of cur) { const k = d.key(i); let o = g.get(k); if (!o) g.set(k, o = { n: 0, hs: 0, hn: 0, gs: 0, gn: 0, ann: 0 }); o.n++;
+        const h = val("h", i); if (h != null) { o.hs += h; o.hn++; } const gg = val("g", i); if (gg != null) { o.gs += gg; o.gn++; } const a = co2Annual(i); if (a) o.ann += a; }
+      let arr = [...g.entries()];
+      if (DR.sort === "name") arr.sort(d.order ? (a, b) => d.order(a[0]) - d.order(b[0]) || b[1].n - a[1].n : (a, b) => a[0].localeCompare(b[0], "ja"));
+      else arr.sort((a, b) => b[1].n - a[1].n);
+      const mx = Math.max(...arr.map(([, o]) => o.n));
+      rows = `<div class="listhead"><span>${esc(d.label)}別 ${arr.length}件</span><span class="seg mini2" id="drSort"><button data-v="count" class="${DR.sort === "count" ? "on" : ""}">本数順</button><button data-v="name" class="${DR.sort === "name" ? "on" : ""}">分類順</button></span></div>
+        <ol class="list drill">${arr.map(([k, o]) => `<li><div class="drow"><button class="dmain" data-drill="${esc(k)}">
+          <span class="dname">${esc(k)}</span><span class="dbar"><span style="width:${(o.n / mx * 100).toFixed(1)}%"></span></span>
+          <span class="dmeta">${fmt(o.n)}本（${(o.n / cur.length * 100).toFixed(1)}%）・平均樹高${o.hn ? (o.hs / o.hn).toFixed(1) : "-"}m・幹周${o.gn ? Math.round(o.gs / o.gn) : "-"}cm・吸収${fmtT(o.ann)}t/年</span></button>
+          <button class="dsel" data-dsel="${esc(k)}" aria-label="${esc(k)}を選択">${ic("lasso")}</button></div></li>`).join("")}</ol>`;
+    } else rows = `<ol class="list">${cur.slice(0, 200).map((i) => treeItem(i, "")).join("")}</ol>${cur.length > 200 ? `<p class="muted small">先頭200本を表示</p>` : ""}`;
+    return `<div class="field"><span class="lbl">分類の階層</span><select id="drPreset" class="inp">${DRILLS.map(([v, l]) => `<option value="${v}"${v === DR.preset ? " selected" : ""}>${l}</option>`).join("")}</select></div>
+      <div class="crumbs">${crumbs}</div>
+      <div class="rk-sum"><b>${fmt(cur.length)}</b> 本${last ? "" : `<span class="muted small">　行をタップで次の階層へ／${ic("lasso")}で選択</span>`}</div>
+      <div class="btnrow"><button class="btn" data-act="drsel"${cur.length ? "" : " disabled"}>${ic("lasso")}この${fmt(cur.length)}本を選択</button>${level ? `<button class="btn sub" data-act="drup">一つ上へ</button>` : ""}</div>
+      ${rows}
+      <p class="anote">対象は現在の絞り込み条件（と表示範囲を選んだ場合はその範囲）に含まれる木です。樹高・幹周の階級と平均は外れ値を除いて計算しています。</p>`;
+  }
+
+  // ---------- 倒木影響範囲 ----------
+  let fallOn = false, treeGrid = null;
+  function buildGrid() {
+    treeGrid = new Map(); const cs = 0.0004;
+    for (let i = 0; i < N; i++) { const k = Math.floor(C.x[i] / cs) + "," + Math.floor(C.y[i] / cs); (treeGrid.get(k) || treeGrid.set(k, []).get(k)).push(i); }
+    treeGrid.cs = cs;
+  }
+  function neighborsWithin(i, r) {
+    if (!treeGrid) buildGrid();
+    const cs = treeGrid.cs, cx = Math.floor(C.x[i] / cs), cy = Math.floor(C.y[i] / cs), out = [];
+    const span = Math.ceil(r / (cs * M_LAT)) + 1;
+    for (let a = -span; a <= span; a++) for (let b = -span; b <= span; b++) {
+      const arr = treeGrid.get((cx + a) + "," + (cy + b)); if (!arr) continue;
+      for (const j of arr) if (j !== i && Math.hypot((C.x[j] - C.x[i]) * M_LON, (C.y[j] - C.y[i]) * M_LAT) <= r) out.push(j);
+    }
+    return out;
+  }
+  let fallStats = null;
+  function rebuildFall() {
+    const ids = selIdx(), lim = CFG.fall.maxDraw, feats = []; let n = 0, withNb = 0, skipped = 0;
+    for (const i of ids) {
+      const r = fallR(i); if (!r) { skipped++; continue; }
+      if (n < lim) feats.push({ type: "Feature", geometry: circlePoly(C.x[i], C.y[i], r, 28), properties: { i } });
+      n++;
+      if (n <= 5000 && neighborsWithin(i, r).length) withNb++;
+    }
+    map.getSource("fall").setData({ type: "FeatureCollection", features: feats });
+    fallStats = { n, withNb, skipped, over: n > lim, checked: Math.min(n, 5000) };
+    const el = $("#fallStat"); if (el) el.innerHTML = fallStatText();
+  }
+  function fallStatText() {
+    if (!fallStats) return "";
+    const s = fallStats;
+    return `樹高を半径とする円を表示中（${fmt(s.n)}本${s.over ? `、地図には先頭${fmt(CFG.fall.maxDraw)}本のみ描画` : ""}）。影響範囲内にほかの街路樹がある木：${fmt(s.withNb)}本${s.checked < s.n ? `（先頭${fmt(s.checked)}本で判定）` : ""}。樹高のデータがない・外れ値の${fmt(s.skipped)}本は対象外です。<br>地形・傾き・根の状態・風は考慮しない幾何学的な目安です。`;
+  }
+  function setFall(on) {
+    fallOn = on;
+    map.setLayoutProperty("fall-fill", "visibility", on ? "visible" : "none");
+    map.setLayoutProperty("fall-line", "visibility", on ? "visible" : "none");
+    if (on) { rebuildFall(); if (map.getZoom() < 15) toast("拡大すると影響範囲が見やすくなります"); }
+    renderLegend();
+    if (pane === "selection") renderSelection();
+  }
+  // 1本の木の影響範囲（詳細画面から）
+  function showFallOne(i, dir) {
+    const r = fallR(i); if (!r) { toast("樹高のデータがないため表示できません"); return; }
+    const feats = [{ type: "Feature", geometry: circlePoly(C.x[i], C.y[i], r * CFG.fall.margin), properties: { kind: "margin" } },
+      { type: "Feature", geometry: circlePoly(C.x[i], C.y[i], r), properties: { kind: "main" } }];
+    if (dir !== "" && dir != null) feats.push({ type: "Feature", geometry: bandPoly(C.x[i], C.y[i], r, Math.max(2, CW[i]), +dir), properties: { kind: "band" } });
+    map.getSource("fallone").setData({ type: "FeatureCollection", features: feats });
+    const sheetH = !isWide() && !$("#sheet").hidden ? innerHeight - $("#sheet").getBoundingClientRect().top : 0;
+    const R = r * CFG.fall.margin, b = [[C.x[i] - R / M_LON, C.y[i] - R / M_LAT], [C.x[i] + R / M_LON, C.y[i] + R / M_LAT]];
+    map.fitBounds(b, { padding: isWide() ? { top: 80, bottom: 80, left: 440, right: 80 } : { top: 130, bottom: sheetH + 20, left: 30, right: 30 }, maxZoom: 19.5, duration: 800 });
+  }
+  const clearFallOne = () => map.getSource("fallone")?.setData(EMPTY_FC);
+  function fallDetailHTML(i) {
+    const r = fallR(i);
+    if (r == null) return `<div class="fallbox"><b>倒木時の影響範囲</b><p class="muted small">樹高のデータがない、または外れ値のため算出できません。</p></div>`;
+    const dirs = [["", "全方向"], [0, "北"], [45, "北東"], [90, "東"], [135, "南東"], [180, "南"], [225, "南西"], [270, "西"], [315, "北西"]];
+    const nb = neighborsWithin(i, r).length;
+    return `<div class="fallbox"><div class="fall-head">${ic("fall")}<b>倒木時の影響範囲</b></div>
+      <div class="est-row"><span>到達距離（最大）</span><b>${r.toFixed(1)} m</b></div>
+      <div class="est-row"><span>影響範囲の面積</span><b>${fmt(Math.round(Math.PI * r * r))} m²</b></div>
+      <div class="est-row"><span>範囲内のほかの街路樹</span><b>${fmt(nb)} 本</b></div>
+      <div class="fallctl"><select id="fallDir" class="inp">${dirs.map(([v, l]) => `<option value="${v}">${l === "全方向" ? "倒れる方向：全方向" : l + "へ倒れた場合"}</option>`).join("")}</select>
+        <button class="btn" data-act="fallshow">地図に表示</button></div>
+      <p class="anote">半径＝樹高の円（濃い色）と、余裕を見た樹高の${CFG.fall.margin}倍の円（破線）を描きます。方向を選ぶと、長さ＝樹高・幅＝樹冠の直径の範囲を表示します。地形・傾き・根の状態・風は考慮しない目安です。</p></div>`;
+  }
+
+  // ---------- 植栽台帳 ----------
+  let ledgers = [], ledgerView = null;
+  const ledgerName = (id) => (ledgers.find((l) => l.id === id) || {}).name || "台帳";
+  async function loadLedgers() { ledgers = (await LedgerStore.all()).sort((a, b) => (b.updated || "").localeCompare(a.updated || "")); }
+  async function saveSelectionAsLedger(asNew) {
+    if (!SEL.ids.size) return;
+    if (SEL.ledgerId && !asNew) {
+      const L = ledgers.find((l) => l.id === SEL.ledgerId);
+      if (L) { L.ids = selIdx(); L.label = SEL.label; L.area = SEL.area; await LedgerStore.put(L); await loadLedgers(); toast(`台帳「${L.name}」を上書き保存しました`); renderSelection(); return; }
+    }
+    const name = prompt("台帳の名前を入力してください", `${SEL.label || "台帳"} ${new Date().toLocaleDateString("ja-JP")}`);
+    if (!name) return;
+    const L = { id: "L-" + Date.now().toString(36), name: name.trim(), memo: "", ids: selIdx(), label: SEL.label, area: SEL.area, created: new Date().toISOString() };
+    await LedgerStore.put(L); await loadLedgers();
+    SEL.ledgerId = L.id; updateSelBar(); renderSelection();
+    toast(`台帳「${L.name}」に${fmt(L.ids.length)}本を保存しました`);
+  }
+  function renderLedger() {
+    const el = $("#pane-ledger");
+    if (ledgerView) {
+      const L = ledgers.find((l) => l.id === ledgerView); if (!L) { ledgerView = null; return renderLedger(); }
+      const ids = L.ids.filter((i) => i >= 0 && i < N), s = summarize(ids);
+      $("#sheetTitle").textContent = "植栽台帳";
+      el.innerHTML = `<button class="backbtn" data-act="lback">${ic("back")}台帳の一覧へ</button>
+        <label class="field"><span class="lbl">台帳名</span><input id="lName" class="inp" value="${esc(L.name)}"></label>
+        <label class="field"><span class="lbl">メモ（目的・対象・担当など）</span><textarea id="lMemo" class="inp" rows="3">${esc(L.memo || "")}</textarea></label>
+        <div class="btnrow"><button class="btn sub" data-act="lmeta">名前・メモを保存</button></div>
+        <p class="muted small">作成：${new Date(L.created).toLocaleString("ja-JP")}　更新：${new Date(L.updated).toLocaleString("ja-JP")}${L.label ? `<br>選び方：${esc(L.label)}` : ""}</p>
+        ${kpiHTML(s)}
+        <div class="btnrow"><button class="btn" data-act="lopen">${ic("pin")}地図で開く（選択する）</button></div>
+        <div class="btnrow">
+          <button class="btn sub" data-act="ladd"${SEL.ids.size && SEL.ledgerId !== L.id ? "" : " disabled"}>選択中の木を追加</button>
+          <button class="btn sub" data-act="lremove"${SEL.ids.size && SEL.ledgerId !== L.id ? "" : " disabled"}>選択中の木を除く</button>
+        </div>
+        <div class="btnrow">
+          <button class="btn sub" data-act="lxlsx">${ic("sheet")}Excel</button><button class="btn sub" data-act="lpdf">${ic("print")}PDF</button><button class="btn sub" data-act="ljson">ファイル書き出し</button>
+        </div>
+        <div class="sec-title">樹種の内訳</div>${barsHTML([...s.sp.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([k, c]) => [k, k, c]), "")}
+        <div class="btnrow" style="margin-top:20px"><button class="btn danger" data-act="ldel">この台帳を削除</button></div>`;
+      return;
+    }
+    el.innerHTML = `<p class="muted small" style="margin-top:0">選択した木に名前を付けて保存したものです。この端末のブラウザ内に保存され、ファイルに書き出してほかの人と共有できます。</p>
+      <div class="btnrow"><button class="btn" data-act="lnew"${SEL.ids.size ? "" : " disabled"}>${ic("book")}選択中の${fmt(SEL.ids.size)}本を新しい台帳に保存</button></div>
+      <div class="btnrow"><label class="btn sub file-btn">台帳ファイルを読み込む<input id="lImport" type="file" accept=".json,application/json"></label></div>
+      <ol class="list">${ledgers.map((L) => `<li><button class="item" data-ledger="${esc(L.id)}"><span class="avatar" style="background:#5d7a3a">${ic("book")}</span>
+        <span class="item-txt"><span class="item-main">${esc(L.name)}</span><span class="item-sub">${fmt(L.ids.length)}本・${new Date(L.updated).toLocaleDateString("ja-JP")}　${esc((L.memo || "").slice(0, 30))}</span></span></button></li>`).join("")
+        || `<li class="empty">${ic("book")}台帳はまだありません。<br>木を選択してから「台帳に保存」してください。</li>`}</ol>`;
+  }
+  async function ledgerAction(act, el) {
+    const L = ledgers.find((l) => l.id === ledgerView);
+    if (act === "lback") { ledgerView = null; renderLedger(); return; }
+    if (act === "lnew") { SEL.ledgerId = null; await saveSelectionAsLedger(true); renderLedger(); return; }
+    if (!L) return;
+    const ids = L.ids.filter((i) => i >= 0 && i < N);
+    if (act === "lmeta") { L.name = $("#lName").value.trim() || L.name; L.memo = $("#lMemo").value; await LedgerStore.put(L); await loadLedgers(); updateSelBar(); toast("保存しました"); renderLedger(); }
+    if (act === "lopen") { setSelection(ids, L.label || L.name, { ledgerId: L.id, area: L.area || null }); fitIds(ids); openSheet("selection"); }
+    if (act === "ladd") { L.ids = [...new Set([...ids, ...SEL.ids])].sort((a, b) => a - b); await LedgerStore.put(L); await loadLedgers(); toast(`追加しました（${fmt(L.ids.length)}本）`); renderLedger(); }
+    if (act === "lremove") { L.ids = ids.filter((i) => !SEL.ids.has(i)); await LedgerStore.put(L); await loadLedgers(); toast(`除きました（${fmt(L.ids.length)}本）`); renderLedger(); }
+    if (act === "lxlsx") exportXlsx(ids, L.name, { label: L.label, memo: L.memo });
+    if (act === "lpdf") printReport(ids, L.name, { label: L.label, memo: L.memo });
+    if (act === "ljson") download(`ledger-${L.name}-${stamp()}.json`, JSON.stringify({ app: "tokyo-street-trees", type: "ledger", version: 1, ledger: L }), "application/json");
+    if (act === "ldel") { if (!confirm(`台帳「${L.name}」を削除しますか？`)) return; await LedgerStore.remove(L.id); if (SEL.ledgerId === L.id) SEL.ledgerId = null; await loadLedgers(); ledgerView = null; updateSelBar(); renderLedger(); }
+  }
+  async function importLedger(file) {
+    try {
+      const j = JSON.parse(await file.text()), L = j.ledger || j;
+      if (!Array.isArray(L.ids)) throw 0;
+      L.id = "L-" + Date.now().toString(36); L.name = (L.name || "読み込んだ台帳"); L.created = L.created || new Date().toISOString();
+      L.ids = L.ids.filter((i) => Number.isInteger(i) && i >= 0 && i < N);
+      await LedgerStore.put(L); await loadLedgers(); renderLedger(); toast(`台帳「${L.name}」を読み込みました（${fmt(L.ids.length)}本）`);
+    } catch { toast("読み込めませんでした（このアプリで書き出した台帳ファイルを選んでください）", 4000); }
+  }
+
+  // ---------- 出力（Excel・PDF・CSV） ----------
+  function treeRows(ids) {
+    const head = ["樹木ID", "樹種", "データ上の樹種名", "科", "属", "常緑・落葉", "区分", "樹高(m)", "枝張(m)", "幹周(cm)", "外れ値として除外した項目", "行政区", "道路種別", "路線名", "整理番号", "通称道路名", "経度", "緯度",
+      "推定CO2貯留量(kg)", "推定年間CO2吸収量(kg/年)", "樹冠投影面積(m2)", "倒木到達距離(m)", "マイメモ：状態", "マイメモ：観察日", "マイメモ：メモ"];
+    const rows = ids.map((i) => {
+      const v = SPI[C.sp[i]], n = notes.get("t-" + i), st = co2Stock(i), an = co2Annual(i), r = fallR(i);
+      return [i, v.std, D.sp[C.sp[i]], v.fam, v.genus === "-" ? "" : v.genus, LEAF[v.leaf], D.cat[C.cat[i]], C.h[i], C.w[i], C.g[i],
+        ["h", "w", "g"].filter((f) => OUT[i] & FIELD[f].bit).map((f) => FIELD[f].label).join("・"),
+        D.ward[C.ward[i]], D.type[C.type[i]], D.route[C.route[i]], C.no[i], C.road[i] >= 0 ? D.road[C.road[i]] : "", C.x[i], C.y[i],
+        st == null ? "" : Math.round(st * 1000), an == null ? "" : +(an * 1000).toFixed(1), +canopyArea(i).toFixed(1), r == null ? "" : +r.toFixed(1),
+        n?.condition || "", n?.date || "", n?.memo || ""];
+    });
+    return [head, ...rows];
+  }
+  function speciesRows(ids) {
+    const m = new Map();
+    for (const i of ids) { const s = SPI[C.sp[i]].std; let o = m.get(s); if (!o) m.set(s, o = { n: 0, hs: 0, hn: 0, gs: 0, gn: 0, st: 0, an: 0, area: 0 }); o.n++;
+      const h = val("h", i); if (h != null) { o.hs += h; o.hn++; } const g = val("g", i); if (g != null) { o.gs += g; o.gn++; }
+      const st = co2Stock(i); if (st != null) { o.st += st; o.an += co2Annual(i); } o.area += canopyArea(i); }
+    const head = ["樹種", "科", "常緑・落葉", "本数", "割合(%)", "平均樹高(m)", "平均幹周(cm)", "推定CO2貯留量(t)", "推定年間CO2吸収量(t/年)", "樹冠投影面積(m2)"];
+    const rows = [...m.entries()].sort((a, b) => b[1].n - a[1].n).map(([k, o]) => { const v = STD.get(k) || {}; return [k, v.fam || "", LEAF[v.leaf] || "", o.n, +(o.n / ids.length * 100).toFixed(1),
+      o.hn ? +(o.hs / o.hn).toFixed(1) : "", o.gn ? Math.round(o.gs / o.gn) : "", +o.st.toFixed(2), +o.an.toFixed(3), Math.round(o.area)]; });
+    return [head, ...rows];
+  }
+  function notesText() {
+    const P = CFG.carbon;
+    return [
+      ["出典", CFG.sourceText],
+      ["外れ値", outlierNote()],
+      ["CO2推定", `胸高直径（幹周÷π）と樹高から幹材積を求め、容積密度・拡大係数（${P.bef}）・地下部比（${P.root}）・炭素含有率（${P.cf}）を掛けた簡易推定。年間吸収量は胸高直径が年${P.dbhGrowthCm}cm太ると仮定した増加分。目安値。`],
+      ["樹冠", "枝張を直径とする円の面積。枝張の欠損・外れ値は同じ樹種・区分の中央値で補完。"],
+      ["倒木影響範囲", `樹高×${CFG.fall.factor}を半径とする円。地形・傾き・根の状態・風は考慮しない幾何学的な目安。`],
+    ];
+  }
+  let xlsxPromise = null;
+  function loadXLSX() {
+    if (window.XLSX) return Promise.resolve();
+    if (!xlsxPromise) xlsxPromise = new Promise((res, rej) => {
+      const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+      s.onload = res; s.onerror = () => { xlsxPromise = null; rej(new Error("Excel出力用のライブラリを読み込めませんでした")); };
+      document.head.appendChild(s);
+    });
+    return xlsxPromise;
+  }
+  async function exportXlsx(ids, title, meta = {}) {
+    if (!ids.length) { toast("出力する木がありません"); return; }
+    toast("Excelファイルを作成しています…", 2000);
+    try { await loadXLSX(); } catch (e) { toast(e.message + "。CSVで保存します", 4000); exportCsvIds(ids, title); return; }
+    const s = summarize(ids);
+    const summary = [["タイトル", title], ["作成日時", new Date().toLocaleString("ja-JP")], ["選び方・条件", meta.label || SEL.label || ""], ["メモ", meta.memo || ""], [],
+      ["本数", s.n], ["樹種数", s.sp.size], ["平均樹高(m)", s.avgH != null ? +s.avgH.toFixed(1) : ""], ["平均幹周(cm)", s.avgG != null ? Math.round(s.avgG) : ""],
+      ["推定CO2貯留量(t)", +s.stock.toFixed(2)], ["推定年間CO2吸収量(t/年)", +s.ann.toFixed(3)], ["CO2推定対象(本)", s.nco2], ["樹冠投影面積(m2)", Math.round(s.area)], ["倒木影響範囲の合計(m2・重なり含む)", Math.round(s.fall)], [],
+      ...notesText()];
+    const wb = XLSX.utils.book_new();
+    const sh = (aoa, widths) => { const w = XLSX.utils.aoa_to_sheet(aoa); w["!cols"] = widths.map((c) => ({ wch: c })); return w; };
+    XLSX.utils.book_append_sheet(wb, sh(summary, [28, 90]), "概要");
+    XLSX.utils.book_append_sheet(wb, sh(speciesRows(ids), [18, 12, 10, 8, 8, 10, 10, 14, 16, 14]), "樹種別集計");
+    const tr = treeRows(ids), ws = sh(tr, [8, 16, 16, 12, 12, 8, 6, 8, 8, 8, 14, 10, 10, 20, 8, 16, 11, 11, 12, 14, 12, 10, 12, 12, 30]);
+    ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: tr.length - 1, c: tr[0].length - 1 } }) };
+    XLSX.utils.book_append_sheet(wb, ws, "樹木一覧");
+    XLSX.writeFile(wb, `${safeName(title)}-${stamp()}.xlsx`);
+  }
+  const safeName = (s) => String(s || "街路樹").replace(/[\\/:*?"<>|\s]+/g, "_").slice(0, 40);
+  function exportCsvIds(ids, title) {
+    download(`${safeName(title)}-${stamp()}.csv`, "﻿" + treeRows(ids).map((r) => r.map(csvCell).join(",")).join("\r\n"), "text/csv");
+  }
+  function printReport(ids, title, meta = {}) {
+    if (!ids.length) { toast("出力する木がありません"); return; }
+    const s = summarize(ids), sp = speciesRows(ids), maxRows = CFG.print.maxTrees;
+    let img = "";
+    try { img = map.getCanvas().toDataURL("image/jpeg", 0.85); } catch { img = ""; }
+    const tr = treeRows(ids), cols = [0, 1, 6, 7, 9, 8, 11, 13, 15];
+    const kp = [["本数", fmt(s.n) + "本"], ["樹種数", fmt(s.sp.size)], ["平均樹高", s.avgH != null ? s.avgH.toFixed(1) + "m" : "-"], ["平均幹周", s.avgG != null ? Math.round(s.avgG) + "cm" : "-"],
+      ["CO2貯留量（推定）", fmtT(s.stock) + "t"], ["年間CO2吸収量（推定）", fmtT(s.ann) + "t/年"], ["樹冠投影面積", fmt(Math.round(s.area)) + "m²"], ["倒木影響範囲（合計）", fmt(Math.round(s.fall)) + "m²"]];
+    $("#printArea").innerHTML = `
+      <h1>${esc(title)}</h1>
+      <p class="pmeta">作成：${new Date().toLocaleString("ja-JP")}${meta.label || SEL.label ? `　／　選び方・条件：${esc(meta.label || SEL.label)}` : ""}</p>
+      ${meta.memo ? `<p class="pmeta">メモ：${esc(meta.memo)}</p>` : ""}
+      <table class="pkpi"><tr>${kp.map(([k, v]) => `<td><span>${k}</span><b>${v}</b></td>`).join("")}</tr></table>
+      ${img ? `<img class="pmap" src="${img}" alt="地図">` : ""}
+      <h2>樹種別集計</h2>
+      <table class="ptable"><thead><tr>${[0, 1, 3, 4, 5, 6, 8].map((c) => `<th>${esc(sp[0][c])}</th>`).join("")}</tr></thead>
+        <tbody>${sp.slice(1, 41).map((r) => `<tr>${[0, 1, 3, 4, 5, 6, 8].map((c) => `<td>${esc(r[c])}</td>`).join("")}</tr>`).join("")}</tbody></table>
+      ${sp.length > 41 ? `<p class="pnote">ほか${sp.length - 41}樹種（すべてはExcel出力で確認できます）</p>` : ""}
+      <h2>樹木一覧${tr.length - 1 > maxRows ? `（先頭${maxRows}本）` : ""}</h2>
+      <table class="ptable small"><thead><tr>${cols.map((c) => `<th>${esc(tr[0][c])}</th>`).join("")}</tr></thead>
+        <tbody>${tr.slice(1, maxRows + 1).map((r) => `<tr>${cols.map((c) => `<td>${esc(r[c])}</td>`).join("")}</tr>`).join("")}</tbody></table>
+      <h2>注記</h2>${notesText().map(([k, v]) => `<p class="pnote"><b>${esc(k)}：</b>${esc(v)}</p>`).join("")}`;
+    toast("印刷画面で「PDFに保存」を選ぶとPDFになります", 4000);
+    setTimeout(() => window.print(), 300);
+  }
+
+  // ---------- 初期化 ----------
+  function addSelectionLayers() {
+    map.addLayer({ id: "trees-picked", type: "circle", source: "trees", paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 2.5, 12, 3.5, 15, 7, 18, 13], "circle-color": "rgba(0,0,0,0)",
+      "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 9, 1, 15, 2.5], "circle-stroke-color": "#1565c0",
+      "circle-stroke-opacity": ["case", ["boolean", ["feature-state", "sel"], false], 1, 0] } }, "trees-sel");
+    map.addSource("selarea", { type: "geojson", data: EMPTY_FC });
+    map.addLayer({ id: "selarea-fill", type: "fill", source: "selarea", paint: { "fill-color": "#1565c0", "fill-opacity": 0.06 } }, "canopy");
+    map.addLayer({ id: "selarea-line", type: "line", source: "selarea", paint: { "line-color": "#1565c0", "line-width": 2, "line-dasharray": [2, 1.5] } });
+    map.addSource("fall", { type: "geojson", data: EMPTY_FC });
+    map.addLayer({ id: "fall-fill", type: "fill", source: "fall", minzoom: 13, layout: { visibility: "none" }, paint: { "fill-color": "#ef6c00", "fill-opacity": 0.10 } }, "canopy");
+    map.addLayer({ id: "fall-line", type: "line", source: "fall", minzoom: 14, layout: { visibility: "none" }, paint: { "line-color": "#ef6c00", "line-width": 1, "line-opacity": 0.6 } }, "trees");
+    map.addSource("fallone", { type: "geojson", data: EMPTY_FC });
+    map.addLayer({ id: "fallone-fill", type: "fill", source: "fallone", paint: { "fill-color": ["match", ["get", "kind"], "band", "#d84315", "main", "#ef6c00", "#ffb74d"],
+      "fill-opacity": ["match", ["get", "kind"], "band", 0.35, "main", 0.18, 0.06] } }, "trees");
+    map.addLayer({ id: "fallone-line", type: "line", source: "fallone", filter: ["!=", ["get", "kind"], "margin"], paint: { "line-color": "#e65100", "line-width": 1.8 } }, "trees");
+    map.addLayer({ id: "fallone-dash", type: "line", source: "fallone", filter: ["==", ["get", "kind"], "margin"], paint: { "line-color": "#e65100", "line-width": 1.5, "line-dasharray": [2, 2] } }, "trees");
+  }
+  async function initPhase1() {
+    await loadLedgers();
+    initLasso();
+    $("#selBtn").onclick = (e) => { e.stopPropagation(); $("#layerPop").hidden = true; $("#selPop").hidden = !$("#selPop").hidden; };
+    $("#selPop").innerHTML = `<h3>木を選ぶ</h3><div class="toolgrid">${selToolButtons()}</div>`;
+    paintIcons($("#selPop"));
+    document.addEventListener("click", (e) => {
+      const t = e.target.closest("[data-tool]"); if (t) { runTool(t.dataset.tool); return; }
+      if (!e.target.closest("#selPop, #selBtn")) $("#selPop").hidden = true;
+    });
+    $("#selOpen").onclick = () => openSheet("selection");
+    $("#selClear").onclick = () => { setSelection([], ""); toast("選択を解除しました"); };
+    $("#pane-selection").addEventListener("click", async (e) => {
+      const t = e.target.closest("[data-tree]"); if (t) { selectTree(+t.dataset.tree, true); return; }
+      const b = e.target.closest(".bar[data-std]"); if (b) { openSpeciesDetail(b.dataset.std, "species"); return; }
+      const a = e.target.closest("[data-act]"); if (!a) return;
+      const act = a.dataset.act, ids = selIdx(), title = SEL.ledgerId ? ledgerName(SEL.ledgerId) : (SEL.label || "選択した街路樹");
+      if (act === "selclear") setSelection([], "");
+      if (act === "selonly") { F.onlySel = !F.onlySel; applyFilters(); renderSelection(); }
+      if (act === "selfit") fitIds(ids);
+      if (act === "fall") setFall(!fallOn);
+      if (act === "ledgersave") saveSelectionAsLedger(false);
+      if (act === "ledgersavenew") saveSelectionAsLedger(true);
+      if (act === "xlsx") exportXlsx(ids, title, { memo: SEL.ledgerId ? (ledgers.find((l) => l.id === SEL.ledgerId) || {}).memo : "" });
+      if (act === "pdf") printReport(ids, title, { memo: SEL.ledgerId ? (ledgers.find((l) => l.id === SEL.ledgerId) || {}).memo : "" });
+      if (act === "csv") exportCsvIds(ids, title);
+    });
+    $("#pane-ledger").addEventListener("click", (e) => {
+      const it = e.target.closest("[data-ledger]"); if (it) { ledgerView = it.dataset.ledger; renderLedger(); $("#sheetBody").scrollTop = 0; return; }
+      const a = e.target.closest("[data-act]"); if (a && !a.disabled) ledgerAction(a.dataset.act, a);
+    });
+    $("#pane-ledger").addEventListener("change", (e) => { if (e.target.id === "lImport" && e.target.files[0]) { importLedger(e.target.files[0]); e.target.value = ""; } });
+    // 分析タブ内（ドリル・上位下位）
+    $("#statsBody").addEventListener("click", (e) => {
+      if (anaTab === "rank") {
+        const sg = e.target.closest("[data-rk] button"); if (sg) { RK[sg.parentElement.dataset.rk] = sg.dataset.v; renderStats(); return; }
+        const pc = e.target.closest("[data-pct]"); if (pc) { RK.pct = +pc.dataset.pct; renderStats(); return; }
+        const a = e.target.closest('[data-act="rksel"]');
+        if (a) { const { out } = rankCompute(scopeIdx()); setSelection(out.map((x) => x.i), `${FIELD[RK.f].label} ${RK.dir === "top" ? "上位" : "下位"}${RK.pct}%（${RK.base === "species" ? "同じ樹種の中で" : "対象全体の中で"}）`); openSheet("selection"); }
+      }
+      if (anaTab === "drill") {
+        const cr = e.target.closest("[data-crumb]"); if (cr) { DR.path = DR.path.slice(0, +cr.dataset.crumb); renderStats(); return; }
+        const ds = e.target.closest("[data-dsel]");
+        if (ds) { const dims = DR.preset.split(","), k = ds.dataset.dsel, d = DIM[dims[DR.path.length]], ids = drillIdx(scopeIdx()).filter((i) => d.key(i) === k);
+          setSelection(ids, [...DR.path, k].join(" › ")); openSheet("selection"); return; }
+        const dm = e.target.closest("[data-drill]"); if (dm) { DR.path.push(dm.dataset.drill); renderStats(); $("#sheetBody").scrollTop = 0; return; }
+        const so = e.target.closest("#drSort button"); if (so) { DR.sort = so.dataset.v; renderStats(); return; }
+        const a = e.target.closest("[data-act]");
+        if (a?.dataset.act === "drup") { DR.path.pop(); renderStats(); }
+        if (a?.dataset.act === "drsel") { const ids = drillIdx(scopeIdx()); setSelection(ids, DR.path.length ? DR.path.join(" › ") : "ドリル分析：全体"); openSheet("selection"); }
+      }
+    });
+    $("#statsBody").addEventListener("change", (e) => {
+      if (e.target.id === "drPreset") { DR.preset = e.target.value; DR.path = []; renderStats(); }
+      if (e.target.id === "rkPct") { const v = +e.target.value; if (v > 0 && v <= 100) { RK.pct = v; renderStats(); } }
+    });
+  }
+
   // ---------- 起動 ----------
   (async function main() {
     paintIcons();
@@ -2250,7 +2906,7 @@ window.NoteStore = (function () {
       await ready;
       for (const n of await NoteStore.all()) notes.set(n.id, n);
       buildSpecies(); computeQuality(); buildDist();
-      addLayers(); initUI(); refreshNotes(); applyFilters();
+      addLayers(); initUI(); await initPhase1(); refreshNotes(); applyFilters();
       const t = hashTree();
       if (t != null) selectTree(t, !/(?:^#|&)map=/.test(location.hash));
       const ld = $("#loading"); ld.style.transition = "opacity .35s"; ld.style.opacity = 0; setTimeout(() => ld.remove(), 400);
