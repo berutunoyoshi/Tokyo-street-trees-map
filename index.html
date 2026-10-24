@@ -446,6 +446,19 @@ details.dataedit { background: #eef4fb; }
 .fab.meas-on { background: #0d47a1; color: #fff; }
 @media (min-width: 900px) { .measbar { left: 50%; right: auto; transform: translateX(-50%); width: 520px; } }
 
+/* ===== 該当する木を順に見る ===== */
+.stepbar { position: fixed; z-index: 22; left: 50%; transform: translateX(-50%); bottom: calc(var(--nav-h) + var(--safe-b) + 14px);
+  display: flex; align-items: center; gap: 4px; background: var(--surface); border-radius: 26px; padding: 4px; box-shadow: var(--shadow-2); max-width: calc(100vw - 150px); transition: bottom .25s; }
+.stepbar button { border: 0; background: var(--green-100); color: var(--accent); font-weight: 800; font-size: 16px; width: 42px; height: 42px; border-radius: 21px; flex: none; }
+.stepbar .step-info { width: auto; min-width: 0; flex: 1; background: none; color: var(--fg); font-size: 13px; padding: 0 6px; display: flex; flex-direction: column; line-height: 1.2; }
+.stepbar .step-info small { font-weight: 600; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+.stepbar .step-x { background: none; color: var(--muted); width: 30px; font-size: 18px; }
+body.sheet-on .stepbar { bottom: calc(52vh + var(--nav-h) + var(--safe-b) + 12px); }
+body.sheet-mini .stepbar { bottom: calc(68px + var(--nav-h) + var(--safe-b) + 12px); }
+body.sheet-full .stepbar, .lassoing .stepbar, .measuring .stepbar, .adding .stepbar, body.planview .stepbar { opacity: 0; pointer-events: none; }
+@media (max-width: 899px) { body.stepping .legend { display: none; } }
+@media (min-width: 900px) { .stepbar { bottom: 34px; } body.sheet-on .stepbar { left: calc(50% + 208px); bottom: 34px; } }
+
 /* ===== レイヤー選択 ===== */
 .popover {
   position: fixed; z-index: 25; right: 72px; bottom: calc(var(--nav-h) + var(--safe-b) + 14px); width: min(300px, calc(100vw - 90px));
@@ -542,6 +555,12 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
 </header>
 
 <div id="countPill" class="countpill">読み込み中…</div>
+<div id="stepBar" class="stepbar" hidden>
+  <button id="stepPrev" aria-label="前の木">◀</button>
+  <button id="stepInfo" class="step-info"><b id="stepIdx"></b><small id="stepName"></small></button>
+  <button id="stepNext" aria-label="次の木">▶</button>
+  <button id="stepClose" class="step-x" aria-label="閉じる">×</button>
+</div>
 <div id="legend" class="legend"></div>
 
 <div class="fabs">
@@ -1172,6 +1191,8 @@ window.APP_CONFIG = {
     "枝垂れ形": ["シダレ*"],
     "球形": ["クスノキ", "ハナミズキ", "ヤマボウシ", "常緑ヤマボウシ", "クロガネモチ", "ヤマモモ", "マテバシイ", "シラカシ", "アラカシ", "スダジイ", "モッコク", "ソヨゴ", "キンモクセイ", "タブノキ", "ホルトノキ", "コブシ", "ハナカイドウ", "トチノキ", "ベニバナトチノキ"],
   },
+  // 絞り込み結果が少ないときの強調表示（beacon 本数以下で目立つ印）と、◀▶で順に見られる最大本数
+  sparse: { beacon: 500, stepper: 3000 },
   // PDF・印刷に載せる樹木一覧の最大行数
   print: { maxTrees: 500 },
   quickSpecies: ["イチョウ", "サクラ", "ケヤキ", "ハナミズキ", "スズカケノキ", "トウカエデ", "クスノキ", "キンモクセイ", "モミジバフウ", "ユリノキ"],
@@ -1384,6 +1405,13 @@ window.DataStore = window.NoteStore.data;
       "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 9, ["case", ["boolean", ["feature-state", "sel"], false], 1.5, 0], 13, ["case", ["boolean", ["feature-state", "sel"], false], 2.2, 0], 15, ["case", ["boolean", ["feature-state", "sel"], false], 3, 1.2]],
       "circle-stroke-color": ["case", ["boolean", ["feature-state", "sel"], false], "#1565c0", "#ffffff"] } });
     // 1本選んだ木：木の縁を明るく
+    // 絞り込み結果が少ないときの目立つ印（縮小しても見えるよう一定の大きさ）
+    map.addLayer({ id: "trees-beacon-halo", type: "circle", source: "trees", layout: { visibility: "none" }, paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 13, 14, 16, 18, 20], "circle-color": "rgba(255,255,255,0.0)",
+      "circle-stroke-width": 4, "circle-stroke-color": "rgba(33,33,33,0.55)", "circle-blur": 0.2 } });
+    map.addLayer({ id: "trees-beacon", type: "circle", source: "trees", layout: { visibility: "none" }, paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 7, 14, 9, 18, 12], "circle-color": colorExpr("cat"),
+      "circle-stroke-width": 2.5, "circle-stroke-color": "#ffffff" } });
     map.addLayer({ id: "trees-sel-core", type: "circle", source: "trees", filter: ["==", ["get", "i"], -1], paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 2, 12, 3, 15, 6.5, 18, 12], "circle-color": "rgba(255,255,255,0.18)",
       "circle-stroke-width": 2.5, "circle-stroke-color": "#fdd835" } });
@@ -1439,6 +1467,7 @@ window.DataStore = window.NoteStore.data;
     map.setLayoutProperty("heat", "visibility", m === "heat" ? "visible" : "none");
     map.setPaintProperty("trees", "circle-opacity", m === "heat" ? ["interpolate", ["linear"], ["zoom"], 14, 0, 16, .9] : .9);
     map.setPaintProperty("trees", "circle-color", colorExpr(m));
+    if (map.getLayer("trees-beacon")) map.setPaintProperty("trees-beacon", "circle-color", colorExpr(m === "heat" ? "cat" : m));
     refresh3D(); if (PVon) pvUpdate();
     renderLegend();
   }
@@ -1505,6 +1534,7 @@ window.DataStore = window.NoteStore.data;
     if (map.getLayer("fallall")) map.setFilter("fallall", expr ? ["all", expr, [">", ["get", "hz"], 0]] : [">", ["get", "hz"], 0]);
     const total = N - DELIDS.length;
     $("#countPill").textContent = matchCount === total ? `${fmt(total)} 本の街路樹` : `${fmt(matchCount)} 本が該当`;
+    updateSparse(expr, matchCount < total);
     const nf = filterCount();
     $("#fBadge").hidden = !nf; $("#fBadge").textContent = nf;
     $("#applyBtn").textContent = `${fmt(matchCount)} 本を表示`;
@@ -3857,7 +3887,7 @@ window.DataStore = window.NoteStore.data;
   // =====================================================================
   let PVon = false, pvPrevVis = {}, pvSel = null;
   const PV = { year: 0, d3: true, canopy: true, fall: false, ghost: false, color: "kind" };
-  const PV_HIDE = ["heat", "trees", "canopy", "fallall", "fall3d", "fallone3d", "trees-sel-core", "trees-sel", "trees-picked", "trees-plan", "selarea-fill", "selarea-line", "planarea-line", "planadd", "planadd-canopy", "planadd-fall", "mine", "trees3d", "fallone-fill", "fallone-line"];
+  const PV_HIDE = ["heat", "trees-beacon", "trees-beacon-halo", "trees", "canopy", "fallall", "fall3d", "fallone3d", "trees-sel-core", "trees-sel", "trees-picked", "trees-plan", "selarea-fill", "selarea-line", "planarea-line", "planadd", "planadd-canopy", "planadd-fall", "mine", "trees3d", "fallone-fill", "fallone-line"];
   const KIND_COL = { "現況": "#2e7d32", "植え替え": "#8e24aa", "サイズ変更": "#ef6c00", "新規植栽": "#ba68c8" };
   function addPVLayers() {
     if (map.getSource("pv")) return;
@@ -4056,6 +4086,61 @@ window.DataStore = window.NoteStore.data;
     };
   }
 
+  // =====================================================================
+  // 絞り込み結果が少ないとき：目立つ印＋◀▶で1本ずつ移動
+  // =====================================================================
+  let stepList = [], stepPos = -1, stepKey = "", stepHidden = false;
+  function updateSparse(expr, filtered) {
+    const n = matchCount;
+    const showBeacon = filtered && n > 0 && n <= CFG.sparse.beacon;
+    for (const id of ["trees-beacon", "trees-beacon-halo"]) if (map.getLayer(id)) { map.setFilter(id, expr); map.setLayoutProperty(id, "visibility", showBeacon ? "visible" : "none"); }
+    const key = JSON.stringify(expr) + "|" + n;
+    if (key !== stepKey) { stepKey = key; stepList = []; stepPos = -1; stepHidden = false; }
+    const show = filtered && n > 0 && n <= CFG.sparse.stepper && !stepHidden;
+    $("#stepBar").hidden = !show; document.body.classList.toggle("stepping", show);
+    if (show) renderStep();
+  }
+  // 該当する木を「近い木から順にたどる」並びにする（地図の中心に近い木から開始）
+  function buildStepList() {
+    const ids = []; for (let i = 0; i < N; i++) if (mask[i]) ids.push(i);
+    if (!ids.length) return [];
+    const c = map.getCenter(), left = new Set(ids), out = [];
+    let cur = ids.reduce((b, i) => Math.hypot((C.x[i] - c.lng) * M_LON, (C.y[i] - c.lat) * M_LAT) < Math.hypot((C.x[b] - c.lng) * M_LON, (C.y[b] - c.lat) * M_LAT) ? i : b, ids[0]);
+    if (ids.length > 800) {  // 多いときは区→路線→位置の順に並べる（計算を軽くするため）
+      return ids.sort((a, b) => wardPos(D.ward[C.ward[a]]) - wardPos(D.ward[C.ward[b]]) || C.route[a] - C.route[b] || C.y[b] - C.y[a]);
+    }
+    while (left.size) {
+      left.delete(cur); out.push(cur);
+      let best = -1, bd = Infinity;
+      for (const j of left) { const d = Math.hypot((C.x[j] - C.x[cur]) * M_LON, (C.y[j] - C.y[cur]) * M_LAT); if (d < bd) { bd = d; best = j; } }
+      if (best < 0) break; cur = best;
+    }
+    return out;
+  }
+  function renderStep() {
+    const n = matchCount;
+    if (stepPos < 0) { $("#stepIdx").textContent = `${fmt(n)}本が該当`; $("#stepName").textContent = "▶で1本ずつ表示"; return; }
+    const i = stepList[stepPos];
+    $("#stepIdx").textContent = `${fmt(stepPos + 1)} / ${fmt(stepList.length)}本目`;
+    $("#stepName").textContent = `${SPI[C.sp[i]].std}・${D.ward[C.ward[i]]}`;
+  }
+  function stepGo(d) {
+    if (!stepList.length) stepList = buildStepList();
+    if (!stepList.length) return;
+    stepPos = stepPos < 0 ? (d > 0 ? 0 : stepList.length - 1) : (stepPos + d + stepList.length) % stepList.length;
+    const i = stepList[stepPos];
+    selectTree(i, false);
+    if (!isWide()) setSheetSize("mini");
+    setTimeout(() => flyToTree(C.x[i], C.y[i], 17.5), isWide() ? 0 : 320);
+    renderStep();
+  }
+  function initStepper() {
+    $("#stepPrev").onclick = () => stepGo(-1);
+    $("#stepNext").onclick = () => stepGo(1);
+    $("#stepInfo").onclick = () => { if (stepPos < 0) stepGo(1); else { selectTree(stepList[stepPos], false); setSheetSize("half"); } };
+    $("#stepClose").onclick = () => { stepHidden = true; $("#stepBar").hidden = true; document.body.classList.remove("stepping"); };
+  }
+
   // ---------- 起動 ----------
   (async function main() {
     paintIcons();
@@ -4069,7 +4154,7 @@ window.DataStore = window.NoteStore.data;
       await ready;
       for (const n of await NoteStore.all()) notes.set(n.id, n);
       buildSpecies(); computeQuality(); buildDist();
-      addLayers(); initUI(); await initPhase1(); await initPhase2(); initDataEdits(); initPlanView(); initMeasure(); setColorMode("sp"); refreshNotes(); applyFilters();
+      addLayers(); initUI(); await initPhase1(); await initPhase2(); initDataEdits(); initPlanView(); initMeasure(); initStepper(); setColorMode("sp"); refreshNotes(); applyFilters();
       const t = hashTree();
       if (t != null) selectTree(t, !/(?:^#|&)map=/.test(location.hash));
       const ld = $("#loading"); ld.style.transition = "opacity .35s"; ld.style.opacity = 0; setTimeout(() => ld.remove(), 400);
