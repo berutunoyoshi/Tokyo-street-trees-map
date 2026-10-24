@@ -544,8 +544,8 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
   </div>
   <h3>点の色分け</h3>
   <div class="colormodes">
-    <button class="cm on" data-cm="cat">高木・中木</button>
-    <button class="cm" data-cm="sp">樹種</button>
+    <button class="cm" data-cm="cat">高木・中木</button>
+    <button class="cm on" data-cm="sp">樹種</button>
     <button class="cm" data-cm="h">樹高</button>
     <button class="cm" data-cm="g">幹周</button>
     <button class="cm" data-cm="heat" style="grid-column:span 2">密度（ヒートマップ）</button>
@@ -1138,7 +1138,7 @@ window.APP_CONFIG = {
   // 計画シミュレーション：新規植栽・植え替え時の標準サイズ（植栽直後）、並木の標準間隔(m)
   plan: { newTree: { "高木": { h: 3.5, g: 20, w: 1.5 }, "中木": { h: 1.5, g: null, w: 0.8 } }, spacing: 8 },
   // 3D表示：通常の地図で立体にする最大本数（画面中央に近い順）、計画の範囲表示で立体にする最大本数
-  tree3d: { maxTrees: 2500, maxPlanTrees: 6000 },
+  tree3d: { maxTrees: 2500, maxPlanTrees: 6000, maxFallDomes: 1200 },
   // 成長シミュレーション：毎年の基準成長量（樹高m・幹周cm・枝張m）と、樹種のデータが少ないときの上限、スライダーの最大年数
   growth: { maxYears: 30, rate: { "高木": { h: 0.45, g: 2.5, w: 0.3 }, "中木": { h: 0.12, g: 0.8, w: 0.1 } }, max: { "高木": { h: 18, g: 200, w: 10 }, "中木": { h: 4, g: 40, w: 3 } } },
   // 3Dの樹形（樹種名。末尾 * は前方一致）。ここにない樹種は、ヤシ類→ヤシ形、中木→株立ち形、針葉樹→円錐形、その他→卵形
@@ -1272,7 +1272,7 @@ window.DataStore = window.NoteStore.data;
 
   // ---------- 状態 ----------
   let D, C, N, mask, matchCount = 0;
-  let selected = null, pane = null, colorMode = "cat", userLoc = null, addMode = false;
+  let selected = null, pane = null, colorMode = "sp", userLoc = null, addMode = false;
   let topSpecies = [], spCount = new Map();
   const notes = new Map();
   const F = { q: "", sp: new Set(), ward: "", cat: "", type: "", route: "", hMin: null, hMax: null, gMin: null, gMax: null, onlyNoted: false, onlySel: false };
@@ -1349,12 +1349,18 @@ window.DataStore = window.NoteStore.data;
       "circle-radius": ["interpolate", ["exponential", 2], ["zoom"], 10, ["/", ["get", "cw"], 248.3], 20, ["/", ["get", "cw"], 0.2425]],
       "circle-color": "#43a047", "circle-opacity": ["case", ["==", ["get", "ci"], 1], 0.12, 0.28],
       "circle-stroke-width": 1, "circle-stroke-color": "rgba(46,125,50,.55)" } });
-    map.addLayer({ id: "trees", type: "circle", source: "trees", paint: {
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 1, 12, 2, 15, 5, 18, 10],
-      "circle-color": colorExpr("cat"), "circle-opacity": .9,
-      "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 13, 0, 15, 1.2], "circle-stroke-color": "#ffffff" } });
+    // 1本選んだ木：木の下に光る輪（ぼかし）
     map.addLayer({ id: "trees-sel", type: "circle", source: "trees", filter: ["==", ["get", "i"], -1], paint: {
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 8, 18, 18], "circle-color": "rgba(229,57,53,.15)", "circle-stroke-width": 3, "circle-stroke-color": "#e53935" } });
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 9, 15, 16, 18, 28], "circle-color": "#ffeb3b", "circle-blur": 0.85, "circle-opacity": 0.95 } });
+    map.addLayer({ id: "trees", type: "circle", source: "trees", paint: {
+      "circle-radius": treeRadius(false),
+      "circle-color": colorExpr("cat"), "circle-opacity": .9,
+      "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 9, ["case", ["boolean", ["feature-state", "sel"], false], 1.5, 0], 13, ["case", ["boolean", ["feature-state", "sel"], false], 2.2, 0], 15, ["case", ["boolean", ["feature-state", "sel"], false], 3, 1.2]],
+      "circle-stroke-color": ["case", ["boolean", ["feature-state", "sel"], false], "#1565c0", "#ffffff"] } });
+    // 1本選んだ木：木の縁を明るく
+    map.addLayer({ id: "trees-sel-core", type: "circle", source: "trees", filter: ["==", ["get", "i"], -1], paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 2, 12, 3, 15, 6.5, 18, 12], "circle-color": "rgba(255,255,255,0.18)",
+      "circle-stroke-width": 2.5, "circle-stroke-color": "#fdd835" } });
     map.addSource("mine", { type: "geojson", data: notesGeoJSON() });
     map.addLayer({ id: "mine", type: "circle", source: "mine", paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 3.5, 18, 10], "circle-color": ["case", ["get", "fav"], "#f2b705", "#ffffff"],
@@ -1380,6 +1386,11 @@ window.DataStore = window.NoteStore.data;
     else if (f.layer.id === "planadd") openPlanAdded(f.properties.nid);
     else selectTree(f.properties.i);
   }
+
+  // 木の点の大きさ（選択中の木は少し大きく）。small=true は樹冠表示中
+  const treeRadius = (small) => { const sel = ["boolean", ["feature-state", "sel"], false], c = (a, b) => ["case", sel, b, a];
+    return small ? ["interpolate", ["linear"], ["zoom"], 9, c(1, 2), 12, c(2, 3), 15, c(3, 4.5), 18, c(3.5, 5.5)] : ["interpolate", ["linear"], ["zoom"], 9, c(1, 2.2), 12, c(2, 3.2), 15, c(5, 6.5), 18, c(10, 12)]; };
+  function setSelFilter(f) { map.setFilter("trees-sel", f); if (map.getLayer("trees-sel-core")) map.setFilter("trees-sel-core", f); }
 
   // ---------- 色分け ----------
   function treeColor(i) {
@@ -1412,7 +1423,7 @@ window.DataStore = window.NoteStore.data;
     if (colorMode === "heat") h = grad("#c5e1a5,#7cb342,#33691e,#1b3d12", "疎", "密度", "密");
     if (notes.size) h += `<span class="lg"><i class="mine"></i>メモ</span>`;
     if (typeof fallOn !== "undefined" && fallOn) h += `<span class="lg"><i style="background:rgba(239,108,0,.4);border:2px solid #d84315"></i>倒木影響範囲</span>`;
-    if (SEL.ids.size) h += `<span class="lg"><i style="border:2px solid #1565c0"></i>選択中</span>`;
+    if (SEL.ids.size) h += `<span class="lg"><i style="background:#43a047;border:2px solid #1565c0"></i>選択中</span>`;
     if (typeof PLAN !== "undefined" && PLAN) h += `<span class="lg"><i style="background:#ddd;border:2px solid #d32f2f"></i>撤去</span><span class="lg"><i style="border:2px solid #7b1fa2"></i>植え替え</span><span class="lg"><i style="border:2px solid #ef6c00"></i>サイズ変更</span><span class="lg"><i style="background:#ba68c8;border:2px solid #4a148c"></i>新規植栽</span>`;
     if ($("#toggle3d")?.checked) h += `<span class="lg"><i style="background:#2e7d32;border-radius:2px"></i>柱の高さ＝樹高</span>`;
     if ($("#canopyToggle")?.checked) h += `<span class="lg"><i style="background:rgba(67,160,71,.35);border:1px solid #2e7d32"></i>樹冠（薄い円は推定）</span>`;
@@ -1615,13 +1626,14 @@ window.DataStore = window.NoteStore.data;
     history.replaceState(null, "", "#" + parts.join("&"));
   }
   const hashTree = () => { const m = location.hash.match(/(?:^#|&)tree=(\d+)/); return m ? +m[1] : null; };
-  function clearSelection() { selected = null; if (map.getLayer("trees-sel")) map.setFilter("trees-sel", ["==", ["get", "i"], -1]); setHashTree(null); }
+  function clearSelection() { selected = null; if (map.getLayer("trees-sel")) setSelFilter(["==", ["get", "i"], -1]); setHashTree(null); }
 
   function selectTree(i, fly) {
+    setTimeout(refresh3D, 0);
     if (!(i >= 0 && i < N)) return;
     openTreeDetail(i);
     selected = i;
-    map.setFilter("trees-sel", ["==", ["get", "i"], i]);
+    setSelFilter(["==", ["get", "i"], i]);
     setHashTree(i);
     if (fly) flyToTree(C.x[i], C.y[i]);
   }
@@ -2316,7 +2328,7 @@ window.DataStore = window.NoteStore.data;
       map.setLayoutProperty("canopy", "visibility", e.target.checked ? "visible" : "none");
       if (map.getLayer("planadd-canopy")) map.setLayoutProperty("planadd-canopy", "visibility", e.target.checked && PLAN ? "visible" : "none");
       // 樹冠表示中は、樹冠が隠れないよう木の点を小さくする
-      map.setPaintProperty("trees", "circle-radius", e.target.checked ? ["interpolate", ["linear"], ["zoom"], 9, 1, 12, 2, 15, 3, 18, 3.5] : ["interpolate", ["linear"], ["zoom"], 9, 1, 12, 2, 15, 5, 18, 10]);
+      map.setPaintProperty("trees", "circle-radius", treeRadius(e.target.checked));
       if (e.target.checked && map.getZoom() < 17) toast("樹冠は地図を拡大すると表示されます");
       renderLegend();
     };
@@ -2406,6 +2418,7 @@ window.DataStore = window.NoteStore.data;
   // ---------- 選択中の木 ----------
   const SEL = { ids: new Set(), label: "", ledgerId: null, area: null };
   function setSelection(ids, label, opts = {}) {
+    setTimeout(refresh3D, 0);
     SEL.ids.forEach((i) => map.setFeatureState({ source: "trees", id: i }, { sel: false }));
     SEL.ids = new Set(ids); SEL.label = label || ""; SEL.ledgerId = opts.ledgerId || null; SEL.area = opts.area || null;
     SEL.ids.forEach((i) => map.setFeatureState({ source: "trees", id: i }, { sel: true }));
@@ -2413,7 +2426,7 @@ window.DataStore = window.NoteStore.data;
     if (!SEL.ids.size) F.onlySel = false;
     if (F.onlySel || !SEL.ids.size) applyFilters();
     if (fallOn) rebuildFall();
-    updateSelBar();
+    updateSelBar(); renderLegend();
     if (pane === "selection") renderSelection();
   }
   function updateSelBar() {
@@ -2718,7 +2731,8 @@ window.DataStore = window.NoteStore.data;
   function setFall(on) {
     fallOn = on;
     $("#fallToggle").checked = on;
-    map.setLayoutProperty("fallall", "visibility", on ? "visible" : "none");
+    map.setLayoutProperty("fallall", "visibility", on && !$("#toggle3d").checked ? "visible" : "none");
+    refresh3D();
     map.setLayoutProperty("planadd-fall", "visibility", on && PLAN ? "visible" : "none");
     if (on) { rebuildFall(); if (map.getZoom() < 14) toast("地図を拡大すると影響範囲が表示されます"); }
     renderLegend();
@@ -2730,12 +2744,23 @@ window.DataStore = window.NoteStore.data;
     const feats = [{ type: "Feature", geometry: circlePoly(C.x[i], C.y[i], r), properties: { kind: "main" } }];
     if (dir !== "" && dir != null) feats.push({ type: "Feature", geometry: bandPoly(C.x[i], C.y[i], r, Math.max(2, CW[i]), +dir), properties: { kind: "band" } });
     map.getSource("fallone").setData({ type: "FeatureCollection", features: feats });
+    lastFallOne = { i, dir }; drawFallOne3D();
     const sheetH = !isWide() && !$("#sheet").hidden ? innerHeight - $("#sheet").getBoundingClientRect().top : 0;
     const R = r, b = [[C.x[i] - R / M_LON, C.y[i] - R / M_LAT], [C.x[i] + R / M_LON, C.y[i] + R / M_LAT]];
     peekMap();
     map.fitBounds(b, { padding: isWide() ? { top: 80, bottom: 80, left: 440, right: 80 } : { top: 180, bottom: 68 + 80, left: 30, right: 30 }, maxZoom: 19.5, duration: 800 });
   }
-  const clearFallOne = () => map.getSource("fallone")?.setData(EMPTY_FC);
+  let lastFallOne = null;
+  function drawFallOne3D() {
+    const src = map.getSource("fallone3d"); if (!src) return;
+    if (!lastFallOne) { src.setData(EMPTY_FC); return; }
+    const { i, dir } = lastFallOne, r = fallR(i); if (!r) { src.setData(EMPTY_FC); return; }
+    const out = [];
+    if (dir !== "" && dir != null) out.push({ type: "Feature", geometry: bandPoly(C.x[i], C.y[i], r, Math.max(2, CW[i]), +dir), properties: { base: 0, top: Math.max(1, (val("h", i) || 2) * 0.6), c: "#bf360c" } });
+    fallDome(C.x[i], C.y[i], r, {}, out, 6);
+    src.setData({ type: "FeatureCollection", features: out });
+  }
+  const clearFallOne = () => { map.getSource("fallone")?.setData(EMPTY_FC); lastFallOne = null; map.getSource("fallone3d")?.setData(EMPTY_FC); };
   function fallDetailHTML(i) {
     const r = fallR(i);
     if (r == null) return `<div class="fallbox"><b>倒木時の影響範囲</b><p class="muted small">樹高のデータがない、または外れ値のため算出できません。</p></div>`;
@@ -2921,7 +2946,7 @@ window.DataStore = window.NoteStore.data;
 
   // ---------- 初期化 ----------
   function addSelectionLayers() {
-    map.addLayer({ id: "trees-picked", type: "circle", source: "trees", paint: {
+    map.addLayer({ id: "trees-picked", type: "circle", source: "trees", layout: { visibility: "none" }, paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 2.5, 12, 3.5, 15, 7, 18, 13], "circle-color": "rgba(0,0,0,0)",
       "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 9, 1, 15, 2.5], "circle-stroke-color": "#1565c0",
       "circle-stroke-opacity": ["case", ["boolean", ["feature-state", "sel"], false], 1, 0] } }, "trees-sel");
@@ -3669,11 +3694,22 @@ window.DataStore = window.NoteStore.data;
   }
   const octagon = (lon, lat, r) => { const ring = []; for (let k = 0; k <= 8; k++) { const t = (k % 8) / 8 * 2 * Math.PI; ring.push([lon + Math.sin(t) * r / M_LON, lat + Math.cos(t) * r / M_LAT]); } return { type: "Polygon", coordinates: [ring] }; };
   // 1本の木を「幹＋段状の樹冠」の立体（fill-extrusion用ポリゴン）にする
+  const mixHex = (a, b, t) => { const p = (c) => [1, 3, 5].map((o) => parseInt(c.slice(o, o + 2), 16)); const A = p(a), B = p(b); return "#" + A.map((x, j) => Math.round(x + (B[j] - x) * t).toString(16).padStart(2, "0")).join(""); };
+  // 倒木影響範囲の立体（半径＝樹高の半球を段状に表現）
+  function fallDome(lon, lat, r, props, out, tiers = 4) {
+    for (let k = 0; k < tiers; k++) {
+      const z0 = k * r / tiers, z1 = (k + 1) * r / tiers, zm = (z0 + z1) / 2, rr = r * Math.sqrt(Math.max(0, 1 - (zm / r) ** 2));
+      out.push({ type: "Feature", geometry: circlePoly(lon, lat, rr, 28), properties: { ...props, base: +z0.toFixed(2), top: +z1.toFixed(2) } });
+    }
+  }
   function treeSolids(a, props, out) {
     const h = Math.max(0.5, a.h || 2), R = Math.max(0.35, (a.w || 1.5) / 2), S = CROWN[crownOf(a.std, a.cat, a.form)] || CROWN["卵形"];
     const cbH = h * S.cb, dbh = a.g ? a.g / 100 / Math.PI : h / 60;
-    if (S.cb > 0.05) out.push({ type: "Feature", geometry: octagon(a.lon, a.lat, Math.max(0.12, dbh / 2) * 1.0), properties: { ...props, base: 0, top: +(cbH + 0.3).toFixed(2), c: "#6d4c41" } });
-    const col = crownColor(a), n = S.tiers, dh = (h - cbH) / n;
+    let trunk = "#6d4c41", col = crownColor(a);
+    if (a.tint === "glow") { col = mixHex(col, "#fff176", 0.6); trunk = mixHex(trunk, "#ffd54f", 0.5); }
+    else if (a.tint === "group") { col = mixHex(col, "#1e88e5", 0.6); trunk = mixHex(trunk, "#1565c0", 0.4); }
+    if (S.cb > 0.05) out.push({ type: "Feature", geometry: octagon(a.lon, a.lat, Math.max(0.12, dbh / 2) * 1.0), properties: { ...props, base: 0, top: +(cbH + 0.3).toFixed(2), c: trunk } });
+    const n = S.tiers, dh = (h - cbH) / n;
     for (let k = 0; k < n; k++) {
       const t = (k + 0.5) / n, r = Math.max(0.15, R * S.prof(t));
       out.push({ type: "Feature", geometry: octagon(a.lon, a.lat, r), properties: { ...props, base: +(cbH + k * dh).toFixed(2), top: +(cbH + (k + 1) * dh).toFixed(2), c: col } });
@@ -3697,8 +3733,13 @@ window.DataStore = window.NoteStore.data;
     }
     cand.sort((x, y) => x[0] - y[0]);
     const feats = [];
-    for (const [, i] of cand.slice(0, CFG.tree3d.maxTrees)) treeSolids(attrForDraw(i), { i, lon: C.x[i], lat: C.y[i] }, feats);
-    if (PLAN) for (const n of PLAN.adds) if (b.contains([n.lon, n.lat])) { const a = synthAttr(n); treeSolids({ ...a, kindColor: "#ab47bc" }, { nid: n.id, lon: n.lon, lat: n.lat }, feats); }
+    const domes = [];
+    cand.slice(0, CFG.tree3d.maxTrees).forEach(([, i], k) => {
+      treeSolids({ ...attrForDraw(i), tint: i === selected ? "glow" : SEL.ids.has(i) ? "group" : null }, { i, lon: C.x[i], lat: C.y[i] }, feats);
+      if (fallOn && k < CFG.tree3d.maxFallDomes) { const r = fallR(i); if (r) fallDome(C.x[i], C.y[i], r, {}, domes); }
+    });
+    if (map.getSource("fall3d")) map.getSource("fall3d").setData({ type: "FeatureCollection", features: domes });
+    if (PLAN) for (const n of PLAN.adds) if (b.contains([n.lon, n.lat])) { const a = synthAttr(n); treeSolids({ ...a, kindColor: "#ab47bc" }, { nid: n.id, lon: n.lon, lat: n.lat }, feats); if (fallOn && a.h) fallDome(n.lon, n.lat, a.h * CFG.fall.factor, {}, domes); }
     map.getSource("trees3d").setData({ type: "FeatureCollection", features: feats });
     if (cand.length > CFG.tree3d.maxTrees) toast(`立体表示は画面中央に近い${fmt(CFG.tree3d.maxTrees)}本です（拡大するとすべて表示）`, 2500);
   }
@@ -3708,8 +3749,18 @@ window.DataStore = window.NoteStore.data;
       map.addLayer({ id: "trees3d", type: "fill-extrusion", source: "trees3d", layout: { visibility: "none" }, paint: {
         "fill-extrusion-color": ["get", "c"], "fill-extrusion-height": ["get", "top"], "fill-extrusion-base": ["get", "base"],
         "fill-extrusion-opacity": 0.95, "fill-extrusion-vertical-gradient": true } }, "mine");
+      map.addSource("fall3d", { type: "geojson", data: EMPTY_FC, buffer: 8, tolerance: 0 });
+      map.addLayer({ id: "fall3d", type: "fill-extrusion", source: "fall3d", layout: { visibility: "none" }, paint: {
+        "fill-extrusion-color": "#f4511e", "fill-extrusion-height": ["get", "top"], "fill-extrusion-base": ["get", "base"], "fill-extrusion-opacity": 0.2 } });
+      map.addSource("fallone3d", { type: "geojson", data: EMPTY_FC });
+      map.addLayer({ id: "fallone3d", type: "fill-extrusion", source: "fallone3d", layout: { visibility: "none" }, paint: {
+        "fill-extrusion-color": ["coalesce", ["get", "c"], "#e65100"], "fill-extrusion-height": ["get", "top"], "fill-extrusion-base": ["get", "base"], "fill-extrusion-opacity": 0.35 } });
     }
     $("#toggle3d").checked = on;
+    map.setLayoutProperty("fall3d", "visibility", on ? "visible" : "none");
+    map.setLayoutProperty("fallone3d", "visibility", on ? "visible" : "none");
+    map.setLayoutProperty("fallall", "visibility", fallOn && !on ? "visible" : "none");
+    if (lastFallOne) drawFallOne3D();
     map.setLayoutProperty("trees3d", "visibility", on ? "visible" : "none");
     map.setLayoutProperty("trees", "visibility", on ? "none" : "visible");
     if (on) {
@@ -3764,7 +3815,7 @@ window.DataStore = window.NoteStore.data;
   // =====================================================================
   let PVon = false, pvPrevVis = {}, pvSel = null;
   const PV = { year: 0, d3: true, canopy: true, fall: false, ghost: false, color: "kind" };
-  const PV_HIDE = ["heat", "trees", "canopy", "fallall", "trees-sel", "trees-picked", "trees-plan", "selarea-fill", "selarea-line", "planarea-line", "planadd", "planadd-canopy", "planadd-fall", "mine", "trees3d", "fallone-fill", "fallone-line"];
+  const PV_HIDE = ["heat", "trees", "canopy", "fallall", "fall3d", "fallone3d", "trees-sel-core", "trees-sel", "trees-picked", "trees-plan", "selarea-fill", "selarea-line", "planarea-line", "planadd", "planadd-canopy", "planadd-fall", "mine", "trees3d", "fallone-fill", "fallone-line"];
   const KIND_COL = { "現況": "#2e7d32", "植え替え": "#8e24aa", "サイズ変更": "#ef6c00", "新規植栽": "#ba68c8" };
   function addPVLayers() {
     if (map.getSource("pv")) return;
@@ -3777,7 +3828,9 @@ window.DataStore = window.NoteStore.data;
     map.addLayer({ id: "pv-ghost", type: "circle", source: "pvghost", paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 2, 18, 8], "circle-color": "rgba(150,150,150,0.35)", "circle-stroke-width": 1, "circle-stroke-color": "rgba(120,120,120,0.6)" } });
     map.addLayer({ id: "pv-points", type: "circle", source: "pv", paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 2.5, 15, 4, 18, 7], "circle-color": ["get", "c"], "circle-stroke-width": 1, "circle-stroke-color": "#fff" } });
     map.addLayer({ id: "pv-3d", type: "fill-extrusion", source: "pv3d", paint: { "fill-extrusion-color": ["get", "c"], "fill-extrusion-height": ["get", "top"], "fill-extrusion-base": ["get", "base"], "fill-extrusion-opacity": 0.95, "fill-extrusion-vertical-gradient": true } });
-    map.addLayer({ id: "pv-sel", type: "circle", source: "pv", filter: ["==", ["get", "k"], -1], paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 6, 18, 14], "circle-color": "rgba(0,0,0,0)", "circle-stroke-width": 3, "circle-stroke-color": "#e53935" } });
+    map.addLayer({ id: "pv-sel", type: "circle", source: "pv", filter: ["==", ["get", "k"], -1], paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 9, 18, 26], "circle-color": "#ffeb3b", "circle-blur": 0.85, "circle-opacity": 0.95 } }, "pv-points");
+    map.addSource("pvfall3d", { type: "geojson", data: EMPTY_FC, buffer: 8, tolerance: 0 });
+    map.addLayer({ id: "pv-fall3d", type: "fill-extrusion", source: "pvfall3d", paint: { "fill-extrusion-color": "#f4511e", "fill-extrusion-height": ["get", "top"], "fill-extrusion-base": ["get", "base"], "fill-extrusion-opacity": 0.2 } });
   }
   let pvList = [];
   function pvUpdate() {
@@ -3790,12 +3843,18 @@ window.DataStore = window.NoteStore.data;
     const removed = Object.entries(PLAN.edits).filter(([, e]) => e.act === "remove").map(([k]) => +k);
     map.getSource("pvghost").setData(PV.ghost ? { type: "FeatureCollection", features: removed.map((i) => ({ type: "Feature", geometry: { type: "Point", coordinates: [C.x[i], C.y[i]] }, properties: {} })) } : EMPTY_FC);
     const solids = [];
-    if (PV.d3) pvList.slice(0, CFG.tree3d.maxPlanTrees).forEach((a, k) => treeSolids({ ...a, kindColor: PV.color === "kind" ? KIND_COL[a.kind] : null, spIdx: STD.get(a.std)?.idx[0] }, { k }, solids));
+    const domes = [];
+    if (PV.d3) pvList.slice(0, CFG.tree3d.maxPlanTrees).forEach((a, k) => {
+      treeSolids({ ...a, kindColor: PV.color === "kind" ? KIND_COL[a.kind] : null, spIdx: STD.get(a.std)?.idx[0], tint: k === pvSel ? "glow" : null }, { k }, solids);
+      if (PV.fall && a.h && k < CFG.tree3d.maxFallDomes) fallDome(a.lon, a.lat, a.h * CFG.fall.factor, {}, domes);
+    });
+    map.getSource("pvfall3d").setData({ type: "FeatureCollection", features: domes });
     map.getSource("pv3d").setData({ type: "FeatureCollection", features: solids });
     map.setLayoutProperty("pv-3d", "visibility", PV.d3 ? "visible" : "none");
     map.setLayoutProperty("pv-points", "visibility", PV.d3 ? "none" : "visible");
     map.setLayoutProperty("pv-canopy", "visibility", PV.canopy && !PV.d3 ? "visible" : "none");
-    map.setLayoutProperty("pv-fall", "visibility", PV.fall ? "visible" : "none");
+    map.setLayoutProperty("pv-fall", "visibility", PV.fall && !PV.d3 ? "visible" : "none");
+    map.setLayoutProperty("pv-fall3d", "visibility", PV.fall && PV.d3 ? "visible" : "none");
     map.setFilter("pv-sel", ["==", ["get", "k"], pvSel ?? -1]);
     renderPVStats(L);
   }
@@ -3805,7 +3864,7 @@ window.DataStore = window.NoteStore.data;
     PVon = true; pvSel = null;
     pvPrevVis = {};
     for (const id of PV_HIDE) if (map.getLayer(id)) { pvPrevVis[id] = map.getLayoutProperty(id, "visibility") || "visible"; map.setLayoutProperty(id, "visibility", "none"); }
-    for (const id of ["pv-fall", "pv-canopy", "pv-ghost", "pv-points", "pv-3d", "pv-sel"]) map.setLayoutProperty(id, "visibility", "visible");
+    for (const id of ["pv-fall", "pv-canopy", "pv-ghost", "pv-points", "pv-3d", "pv-sel", "pv-fall3d"]) map.setLayoutProperty(id, "visibility", "visible");
     document.body.classList.add("planview");
     $("#pvBarTxt").innerHTML = `計画案「<b>${esc(PLAN.name)}</b>」の範囲だけを表示中`;
     map.dragRotate.enable(); map.touchPitch.enable(); map.touchZoomRotate.enableRotation();
@@ -3820,7 +3879,7 @@ window.DataStore = window.NoteStore.data;
   function exitPlanView() {
     if (!PVon) return;
     PVon = false;
-    for (const id of ["pv-fall", "pv-canopy", "pv-ghost", "pv-points", "pv-3d", "pv-sel"]) map.setLayoutProperty(id, "visibility", "none");
+    for (const id of ["pv-fall", "pv-canopy", "pv-ghost", "pv-points", "pv-3d", "pv-sel", "pv-fall3d"]) map.setLayoutProperty(id, "visibility", "none");
     for (const [id, v] of Object.entries(pvPrevVis)) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", v);
     document.body.classList.remove("planview");
     if (!$("#toggle3d").checked) { map.dragRotate.disable(); map.touchPitch.disable(); map.touchZoomRotate.disableRotation(); map.easeTo({ pitch: 0, bearing: 0, duration: 600 }); }
@@ -3874,8 +3933,7 @@ window.DataStore = window.NoteStore.data;
     const fs = map.queryRenderedFeatures(box, { layers: PV.d3 ? ["pv-3d"] : ["pv-points"] });
     pvSel = fs.length ? fs[0].properties.k : null;
     if (pvSel != null && sheetSize() === "mini") setSheetSize("half");
-    map.setFilter("pv-sel", ["==", ["get", "k"], pvSel ?? -1]);
-    renderPVStats(planLists());
+    pvUpdate();
   }
   function initPlanView() {
     $("#pvExit").onclick = exitPlanView;
@@ -3903,7 +3961,7 @@ window.DataStore = window.NoteStore.data;
       await ready;
       for (const n of await NoteStore.all()) notes.set(n.id, n);
       buildSpecies(); computeQuality(); buildDist();
-      addLayers(); initUI(); await initPhase1(); await initPhase2(); initDataEdits(); initPlanView(); refreshNotes(); applyFilters();
+      addLayers(); initUI(); await initPhase1(); await initPhase2(); initDataEdits(); initPlanView(); setColorMode("sp"); refreshNotes(); applyFilters();
       const t = hashTree();
       if (t != null) selectTree(t, !/(?:^#|&)map=/.test(location.hash));
       const ld = $("#loading"); ld.style.transition = "opacity .35s"; ld.style.opacity = 0; setTimeout(() => ld.remove(), 400);
