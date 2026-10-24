@@ -319,6 +319,8 @@ body.sheet-full .selbar { opacity: 0; pointer-events: none; }
 .lassobar .seg { background: rgba(255,255,255,.2); }
 .lassobar .seg button { color: #fff; background: none; }
 .lassobar .seg button.on { background: #fff; color: #1565c0; }
+#lassoTxt { flex-basis: 100%; font-size: 13.5px; }
+.lassobar #lassoCancel { margin-left: auto; }
 .lassobar .seg button:disabled { opacity: .4; }
 .lassoing .topbar, .lassoing .fabs, .lassoing .legend, .lassoing .countpill, .lassoing .selbar, .lassoing .bottomnav { opacity: 0; pointer-events: none; }
 .selhead { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
@@ -429,6 +431,21 @@ details.dataedit { background: #eef4fb; }
 @media (prefers-color-scheme: dark) { details.dataedit { background: #1c2733; } }
 @media (min-width: 900px) { .pvbar { left: 16px; right: auto; width: 400px; top: 16px; } }
 
+/* ===== 計測 ===== */
+.measbar { position: fixed; z-index: 40; left: 10px; right: 10px; top: calc(var(--safe-t) + 10px); background: #0d47a1; color: #fff; border-radius: 16px; padding: 10px 12px; box-shadow: var(--shadow-2); }
+.meas-top { display: flex; align-items: center; gap: 10px; }
+.measbar .seg { background: rgba(255,255,255,.2); }
+.measbar .seg button { color: #fff; background: none; }
+.measbar .seg button.on { background: #fff; color: #0d47a1; }
+.meas-val { flex: 1; font-weight: 800; font-size: 15px; line-height: 1.3; }
+.meas-val small { display: block; font-weight: 500; font-size: 11.5px; opacity: .85; }
+.meas-btns { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.meas-btns button { border: 0; background: rgba(255,255,255,.2); color: #fff; border-radius: 10px; padding: 7px 12px; font-weight: 700; }
+.meas-btns #measEnd { margin-left: auto; background: #fff; color: #0d47a1; }
+.measuring .topbar, .measuring .countpill, .measuring .selbar, .measuring .planbar, .measuring .pvbar { opacity: 0; pointer-events: none; }
+.fab.meas-on { background: #0d47a1; color: #fff; }
+@media (min-width: 900px) { .measbar { left: 50%; right: auto; transform: translateX(-50%); width: 520px; } }
+
 /* ===== レイヤー選択 ===== */
 .popover {
   position: fixed; z-index: 25; right: 72px; bottom: calc(var(--nav-h) + var(--safe-b) + 14px); width: min(300px, calc(100vw - 90px));
@@ -528,6 +545,7 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
 <div id="legend" class="legend"></div>
 
 <div class="fabs">
+  <button id="measBtn" class="fab" aria-label="距離・面積を測る"><i data-ic="ruler"></i></button>
   <button id="selBtn" class="fab" aria-label="木を選ぶ"><i data-ic="lasso"></i></button>
   <button id="layerBtn" class="fab" aria-label="地図の表示設定"><i data-ic="layers"></i></button>
   <button id="locBtn" class="fab loc" aria-label="現在地を表示"><i data-ic="locate"></i></button>
@@ -558,7 +576,13 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
 <!-- 選択ツール -->
 <div id="selPop" class="popover" hidden></div>
 <div id="selBar" class="selbar" hidden><span id="selBarTxt"></span><button id="selOpen">詳細</button><button id="selClear" aria-label="選択を解除">×</button></div>
-<div id="lassoBar" class="addbar lassobar" hidden><span>指でなぞって範囲を囲んでください</span>
+<div id="measBar" class="measbar" hidden>
+  <div class="meas-top"><span class="seg mini2" id="measMode"><button data-m="dist" class="on">距離</button><button data-m="area">面積</button></span>
+    <span class="meas-val" id="measVal">地図をタップして点を置いてください</span></div>
+  <div class="meas-btns"><button id="measUndo">1つ戻す</button><button id="measClear">クリア</button><button id="measSel" hidden>範囲の木を選択</button><button id="measEnd">終了</button></div>
+</div>
+<div id="lassoBar" class="addbar lassobar" hidden><span id="lassoTxt">指でなぞって範囲を囲んでください</span>
+  <span class="seg mini2" id="lassoShape"><button data-s="free" class="on">なぞる</button><button data-s="rect">四角形</button></span>
   <span class="seg mini2" id="lassoModes"><button data-m="new" class="on">新規</button><button data-m="add">追加</button><button data-m="remove">除外</button></span>
   <button id="lassoCancel">やめる</button></div>
 <svg id="lassoSvg" class="lasso" hidden><path id="lassoPath" d=""/></svg>
@@ -1251,6 +1275,8 @@ window.DataStore = window.NoteStore.data;
     leaf: '<path d="M5 19c0-8 5-14 15-15 0 10-6 15-14 15"/><path d="M5 19 13 11"/>',
     back: '<path d="m15 6-6 6 6 6"/>',
     lasso: '<path d="M7 18c-2.5-1-4-3-4-5.5C3 8 7 5 12 5s9 3 9 7-4 7-9 7c-1 0-2-.1-2.9-.3"/><circle cx="7" cy="19" r="1.6"/>',
+    rect: '<rect x="4" y="5" width="16" height="14" rx="1" stroke-dasharray="3 2.5"/>',
+    ruler: '<path d="M3 17 17 3l4 4L7 21Z"/><path d="m7 13 2 2M10 10l2 2M13 7l2 2"/>',
     rank: '<path d="M4 20h4v-6H4zM10 20h4V4h-4zM16 20h4v-9h-4z"/>',
     drill: '<path d="M3 5h18l-7 8v6l-4 2v-8Z"/>',
     fall: '<path d="M6 20 18 8"/><circle cx="18.5" cy="6.5" r="3"/><path d="M3 20h18"/><path d="M6 20a14 14 0 0 1 3-11" stroke-dasharray="2 2.5"/>',
@@ -1370,11 +1396,13 @@ window.DataStore = window.NoteStore.data;
       map.on("mouseleave", id, () => { map.getCanvas().style.cursor = ""; });
     }
     map.on("click", onMapClick);
-    addSelectionLayers(); addPlanLayers();
+    addSelectionLayers(); addPlanLayers(); addMeasureLayers();
+    flattenCircles(["canopy", "fallall", "planadd-canopy", "planadd-fall"]);
   }
 
   function onMapClick(e) {
     if (addMode) return;
+    if (MEAS) { MEAS.pts.push([e.lngLat.lng, e.lngLat.lat]); drawMeasure(); return; }
     if (PVon) { pvClick(e); return; }
     $("#layerPop").hidden = true;
     const pad = 8, box = [[e.point.x - pad, e.point.y - pad], [e.point.x + pad, e.point.y + pad]];
@@ -1390,6 +1418,8 @@ window.DataStore = window.NoteStore.data;
   // 木の点の大きさ（選択中の木は少し大きく）。small=true は樹冠表示中
   const treeRadius = (small) => { const sel = ["boolean", ["feature-state", "sel"], false], c = (a, b) => ["case", sel, b, a];
     return small ? ["interpolate", ["linear"], ["zoom"], 9, c(1, 2), 12, c(2, 3), 15, c(3, 4.5), 18, c(3.5, 5.5)] : ["interpolate", ["linear"], ["zoom"], 9, c(1, 2.2), 12, c(2, 3.2), 15, c(5, 6.5), 18, c(10, 12)]; };
+  // メートル単位の円（樹冠・倒木範囲）は、地図を傾けても地面に沿って描く
+  function flattenCircles(ids) { for (const id of ids) if (map.getLayer(id)) { map.setPaintProperty(id, "circle-pitch-alignment", "map"); map.setPaintProperty(id, "circle-pitch-scale", "map"); } }
   function setSelFilter(f) { map.setFilter("trees-sel", f); if (map.getLayer("trees-sel-core")) map.setFilter("trees-sel-core", f); }
 
   // ---------- 色分け ----------
@@ -1957,7 +1987,7 @@ window.DataStore = window.NoteStore.data;
     });
     $$(".cm").forEach((b) => b.onclick = () => { setColorMode(b.dataset.cm); renderChipRow(); });
     document.addEventListener("click", (e) => { if (!e.target.closest("#layerPop, #layerBtn")) $("#layerPop").hidden = true; });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (addMode) stopAdd(); else closeSheet(); } });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (MEAS) stopMeasure(); else if (addMode) stopAdd(); else closeSheet(); } });
 
     initSpeciesUI(); initAnalysisUI();
     map.on("moveend", debounce(refresh3D, 250));
@@ -2504,7 +2534,8 @@ window.DataStore = window.NoteStore.data;
       <ol class="list">${idx.slice(0, 200).map((i) => treeItem(i, "")).join("")}</ol>`;
   }
   function selToolButtons() {
-    return `<button class="tool" data-tool="lasso">${ic("lasso")}<b>指で囲んで選択</b><span>地図上で範囲をなぞる</span></button>
+    return `<button class="tool" data-tool="rect">${ic("rect")}<b>四角形で選択</b><span>対角にドラッグして囲む</span></button>
+      <button class="tool" data-tool="lasso">${ic("lasso")}<b>指で囲んで選択</b><span>地図上で範囲をなぞる</span></button>
       <button class="tool" data-tool="rank">${ic("rank")}<b>上位・下位◯%</b><span>幹周・樹高・枝張で選ぶ</span></button>
       <button class="tool" data-tool="drill">${ic("drill")}<b>ドリル分析</b><span>区→路線→樹種などで絞る</span></button>
       <button class="tool" data-tool="filter">${ic("filter")}<b>絞り込み結果すべて</b><span>今の条件に合う木</span></button>
@@ -2513,7 +2544,9 @@ window.DataStore = window.NoteStore.data;
   }
   function runTool(t) {
     $("#selPop").hidden = true;
-    if (t === "lasso") startLasso();
+    if (t === "lasso") startLasso("free");
+    if (t === "rect") startLasso("rect");
+    if (t === "measure") startMeasure();
     if (t === "rank") { anaTab = "rank"; openSheet("stats"); syncAnaTab(); renderStats(); }
     if (t === "drill") { anaTab = "drill"; openSheet("stats"); syncAnaTab(); renderStats(); }
     if (t === "ledger") openSheet("ledger");
@@ -2539,8 +2572,14 @@ window.DataStore = window.NoteStore.data;
   }
 
   // ---------- 指で囲んで選択 ----------
-  let lassoMode = "new", lassoPts = null;
-  function startLasso() {
+  let lassoMode = "new", lassoPts = null, lassoShape = "free";
+  function setLassoShape(sh) {
+    lassoShape = sh;
+    $$("#lassoShape button").forEach((b) => b.classList.toggle("on", b.dataset.s === sh));
+    $("#lassoTxt").textContent = sh === "rect" ? "四角形の角から対角へドラッグしてください" : "指でなぞって範囲を囲んでください";
+  }
+  function startLasso(shape) {
+    setLassoShape(shape || lassoShape);
     closeSheet(); document.body.classList.add("lassoing");
     $("#lassoBar").hidden = false; $("#lassoSvg").removeAttribute("hidden"); $("#lassoPath").setAttribute("d", "");
     $$("#lassoModes button").forEach((b) => b.classList.toggle("on", b.dataset.m === lassoMode));
@@ -2552,6 +2591,12 @@ window.DataStore = window.NoteStore.data;
     svg.addEventListener("pointerdown", (e) => { lassoPts = [[e.clientX, e.clientY]]; svg.setPointerCapture?.(e.pointerId); e.preventDefault(); });
     svg.addEventListener("pointermove", (e) => {
       if (!lassoPts) return;
+      if (lassoShape === "rect") {
+        const [x0, y0] = lassoPts[0], x1 = e.clientX, y1 = e.clientY;
+        lassoPts = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+        $("#lassoPath").setAttribute("d", `M${x0} ${y0} L${x1} ${y0} L${x1} ${y1} L${x0} ${y1} Z`);
+        return;
+      }
       const l = lassoPts[lassoPts.length - 1];
       if (Math.hypot(e.clientX - l[0], e.clientY - l[1]) < 4) return;
       lassoPts.push([e.clientX, e.clientY]);
@@ -2560,7 +2605,7 @@ window.DataStore = window.NoteStore.data;
     const end = () => {
       if (!lassoPts) return;
       const pts = lassoPts; lassoPts = null;
-      if (pts.length < 4) { toast("もう少し大きく囲んでください"); return; }
+      if (pts.length < 4 || (lassoShape === "rect" && Math.abs(pts[2][0] - pts[0][0]) < 8 && Math.abs(pts[2][1] - pts[0][1]) < 8)) { toast("もう少し大きく囲んでください"); return; }
       const rect = map.getCanvas().getBoundingClientRect();
       const ring = pts.map(([x, y]) => { const ll = map.unproject([x - rect.left, y - rect.top]); return [ll.lng, ll.lat]; });
       ring.push(ring[0]);
@@ -2569,6 +2614,7 @@ window.DataStore = window.NoteStore.data;
     svg.addEventListener("pointerup", end); svg.addEventListener("pointercancel", end);
     $("#lassoModes").onclick = (e) => { const b = e.target.closest("button"); if (!b || b.disabled) return; lassoMode = b.dataset.m; $$("#lassoModes button").forEach((x) => x.classList.toggle("on", x === b)); };
     $("#lassoCancel").onclick = stopLasso;
+    $("#lassoShape").onclick = (e) => { const b = e.target.closest("button"); if (b) setLassoShape(b.dataset.s); };
   }
   function pointInRing(x, y, ring) {
     let inside = false;
@@ -2731,7 +2777,7 @@ window.DataStore = window.NoteStore.data;
   function setFall(on) {
     fallOn = on;
     $("#fallToggle").checked = on;
-    map.setLayoutProperty("fallall", "visibility", on && !$("#toggle3d").checked ? "visible" : "none");
+    map.setLayoutProperty("fallall", "visibility", on ? "visible" : "none");
     refresh3D();
     map.setLayoutProperty("planadd-fall", "visibility", on && PLAN ? "visible" : "none");
     if (on) { rebuildFall(); if (map.getZoom() < 14) toast("地図を拡大すると影響範囲が表示されます"); }
@@ -2744,7 +2790,7 @@ window.DataStore = window.NoteStore.data;
     const feats = [{ type: "Feature", geometry: circlePoly(C.x[i], C.y[i], r), properties: { kind: "main" } }];
     if (dir !== "" && dir != null) feats.push({ type: "Feature", geometry: bandPoly(C.x[i], C.y[i], r, Math.max(2, CW[i]), +dir), properties: { kind: "band" } });
     map.getSource("fallone").setData({ type: "FeatureCollection", features: feats });
-    lastFallOne = { i, dir }; drawFallOne3D();
+
     const sheetH = !isWide() && !$("#sheet").hidden ? innerHeight - $("#sheet").getBoundingClientRect().top : 0;
     const R = r, b = [[C.x[i] - R / M_LON, C.y[i] - R / M_LAT], [C.x[i] + R / M_LON, C.y[i] + R / M_LAT]];
     peekMap();
@@ -3736,10 +3782,9 @@ window.DataStore = window.NoteStore.data;
     const domes = [];
     cand.slice(0, CFG.tree3d.maxTrees).forEach(([, i], k) => {
       treeSolids({ ...attrForDraw(i), tint: i === selected ? "glow" : SEL.ids.has(i) ? "group" : null }, { i, lon: C.x[i], lat: C.y[i] }, feats);
-      if (fallOn && k < CFG.tree3d.maxFallDomes) { const r = fallR(i); if (r) fallDome(C.x[i], C.y[i], r, {}, domes); }
     });
     if (map.getSource("fall3d")) map.getSource("fall3d").setData({ type: "FeatureCollection", features: domes });
-    if (PLAN) for (const n of PLAN.adds) if (b.contains([n.lon, n.lat])) { const a = synthAttr(n); treeSolids({ ...a, kindColor: "#ab47bc" }, { nid: n.id, lon: n.lon, lat: n.lat }, feats); if (fallOn && a.h) fallDome(n.lon, n.lat, a.h * CFG.fall.factor, {}, domes); }
+    if (PLAN) for (const n of PLAN.adds) if (b.contains([n.lon, n.lat])) { const a = synthAttr(n); treeSolids({ ...a, kindColor: "#ab47bc" }, { nid: n.id, lon: n.lon, lat: n.lat }, feats); }
     map.getSource("trees3d").setData({ type: "FeatureCollection", features: feats });
     if (cand.length > CFG.tree3d.maxTrees) toast(`立体表示は画面中央に近い${fmt(CFG.tree3d.maxTrees)}本です（拡大するとすべて表示）`, 2500);
   }
@@ -3757,10 +3802,7 @@ window.DataStore = window.NoteStore.data;
         "fill-extrusion-color": ["coalesce", ["get", "c"], "#e65100"], "fill-extrusion-height": ["get", "top"], "fill-extrusion-base": ["get", "base"], "fill-extrusion-opacity": 0.35 } });
     }
     $("#toggle3d").checked = on;
-    map.setLayoutProperty("fall3d", "visibility", on ? "visible" : "none");
-    map.setLayoutProperty("fallone3d", "visibility", on ? "visible" : "none");
-    map.setLayoutProperty("fallall", "visibility", fallOn && !on ? "visible" : "none");
-    if (lastFallOne) drawFallOne3D();
+    map.setLayoutProperty("fallall", "visibility", fallOn ? "visible" : "none");
     map.setLayoutProperty("trees3d", "visibility", on ? "visible" : "none");
     map.setLayoutProperty("trees", "visibility", on ? "none" : "visible");
     if (on) {
@@ -3830,6 +3872,7 @@ window.DataStore = window.NoteStore.data;
     map.addLayer({ id: "pv-3d", type: "fill-extrusion", source: "pv3d", paint: { "fill-extrusion-color": ["get", "c"], "fill-extrusion-height": ["get", "top"], "fill-extrusion-base": ["get", "base"], "fill-extrusion-opacity": 0.95, "fill-extrusion-vertical-gradient": true } });
     map.addLayer({ id: "pv-sel", type: "circle", source: "pv", filter: ["==", ["get", "k"], -1], paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 9, 18, 26], "circle-color": "#ffeb3b", "circle-blur": 0.85, "circle-opacity": 0.95 } }, "pv-points");
     map.addSource("pvfall3d", { type: "geojson", data: EMPTY_FC, buffer: 8, tolerance: 0 });
+    flattenCircles(["pv-fall", "pv-canopy"]);
     map.addLayer({ id: "pv-fall3d", type: "fill-extrusion", source: "pvfall3d", paint: { "fill-extrusion-color": "#f4511e", "fill-extrusion-height": ["get", "top"], "fill-extrusion-base": ["get", "base"], "fill-extrusion-opacity": 0.2 } });
   }
   let pvList = [];
@@ -3846,15 +3889,15 @@ window.DataStore = window.NoteStore.data;
     const domes = [];
     if (PV.d3) pvList.slice(0, CFG.tree3d.maxPlanTrees).forEach((a, k) => {
       treeSolids({ ...a, kindColor: PV.color === "kind" ? KIND_COL[a.kind] : null, spIdx: STD.get(a.std)?.idx[0], tint: k === pvSel ? "glow" : null }, { k }, solids);
-      if (PV.fall && a.h && k < CFG.tree3d.maxFallDomes) fallDome(a.lon, a.lat, a.h * CFG.fall.factor, {}, domes);
     });
     map.getSource("pvfall3d").setData({ type: "FeatureCollection", features: domes });
     map.getSource("pv3d").setData({ type: "FeatureCollection", features: solids });
     map.setLayoutProperty("pv-3d", "visibility", PV.d3 ? "visible" : "none");
     map.setLayoutProperty("pv-points", "visibility", PV.d3 ? "none" : "visible");
     map.setLayoutProperty("pv-canopy", "visibility", PV.canopy && !PV.d3 ? "visible" : "none");
-    map.setLayoutProperty("pv-fall", "visibility", PV.fall && !PV.d3 ? "visible" : "none");
-    map.setLayoutProperty("pv-fall3d", "visibility", PV.fall && PV.d3 ? "visible" : "none");
+    if (map.getLayer("fall3d")) map.setLayoutProperty("fall3d", "visibility", "none");
+    map.setLayoutProperty("pv-fall", "visibility", PV.fall ? "visible" : "none");
+    map.setLayoutProperty("pv-fall3d", "visibility", "none");
     map.setFilter("pv-sel", ["==", ["get", "k"], pvSel ?? -1]);
     renderPVStats(L);
   }
@@ -3948,6 +3991,71 @@ window.DataStore = window.NoteStore.data;
     });
   }
 
+  // =====================================================================
+  // 距離・面積の測定
+  // =====================================================================
+  let MEAS = null;
+  function geoDist(a, b) {
+    const R = 6371008.8, r = Math.PI / 180, dlat = (b[1] - a[1]) * r, dlon = (b[0] - a[0]) * r;
+    const h = Math.sin(dlat / 2) ** 2 + Math.cos(a[1] * r) * Math.cos(b[1] * r) * Math.sin(dlon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+  function geoArea(pts) {  // 測った点の平均緯度で平面に投影して面積を計算（区内の範囲では誤差は十分小さい）
+    const lat0 = pts.reduce((s, p) => s + p[1], 0) / pts.length, kx = 111320 * Math.cos(lat0 * Math.PI / 180), ky = 110574;
+    let a = 0;
+    for (let k = 0; k < pts.length; k++) { const p = pts[k], q = pts[(k + 1) % pts.length]; a += (p[0] * kx) * (q[1] * ky) - (q[0] * kx) * (p[1] * ky); }
+    return Math.abs(a) / 2;
+  }
+  const fmtLen = (m) => m >= 1000 ? (m / 1000).toFixed(2) + " km" : m.toFixed(1) + " m";
+  const fmtArea = (a) => a >= 10000 ? `${fmt(Math.round(a))} m²（${(a / 10000).toFixed(2)} ha）` : `${a.toFixed(1)} m²`;
+  function addMeasureLayers() {
+    map.addSource("measure", { type: "geojson", data: EMPTY_FC });
+    map.addLayer({ id: "measure-fill", type: "fill", source: "measure", filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": "#1e88e5", "fill-opacity": 0.18 } });
+    map.addLayer({ id: "measure-line", type: "line", source: "measure", filter: ["!=", ["geometry-type"], "Point"], paint: { "line-color": "#0d47a1", "line-width": 3 } });
+    map.addLayer({ id: "measure-pt", type: "circle", source: "measure", filter: ["==", ["geometry-type"], "Point"], paint: { "circle-radius": 6, "circle-color": "#fff", "circle-stroke-width": 3, "circle-stroke-color": "#0d47a1" } });
+  }
+  function startMeasure() {
+    if (MEAS) { stopMeasure(); return; }
+    if (addMode || document.body.classList.contains("lassoing")) return;
+    MEAS = { mode: MEAS?.mode || "dist", pts: [] };
+    if (!isWide()) closeSheet();
+    $("#selPop").hidden = true; $("#layerPop").hidden = true;
+    $("#measBar").hidden = false; document.body.classList.add("measuring"); $("#measBtn").classList.add("meas-on"); map.doubleClickZoom.disable();
+    drawMeasure();
+  }
+  function stopMeasure() {
+    MEAS = null; $("#measBar").hidden = true; document.body.classList.remove("measuring"); $("#measBtn").classList.remove("meas-on"); map.doubleClickZoom.enable();
+    map.getSource("measure").setData(EMPTY_FC);
+  }
+  function drawMeasure() {
+    if (!MEAS) return;
+    const P = MEAS.pts, area = MEAS.mode === "area", feats = P.map((c) => ({ type: "Feature", geometry: { type: "Point", coordinates: c }, properties: {} }));
+    if (P.length >= 2) feats.push({ type: "Feature", geometry: { type: "LineString", coordinates: area && P.length >= 3 ? [...P, P[0]] : P }, properties: {} });
+    if (area && P.length >= 3) feats.push({ type: "Feature", geometry: { type: "Polygon", coordinates: [[...P, P[0]]] }, properties: {} });
+    map.getSource("measure").setData({ type: "FeatureCollection", features: feats });
+    let len = 0; for (let k = 1; k < P.length; k++) len += geoDist(P[k - 1], P[k]);
+    let txt;
+    if (!P.length) txt = "地図をタップして点を置いてください";
+    else if (!area) txt = P.length < 2 ? "次の点をタップしてください" : `${fmtLen(len)}<small>${P.length - 1}区間${P.length > 2 ? "・最後の区間 " + fmtLen(geoDist(P[P.length - 2], P[P.length - 1])) : ""}</small>`;
+    else if (P.length < 3) txt = `あと${3 - P.length}点以上タップしてください`;
+    else { const per = len + geoDist(P[P.length - 1], P[0]); txt = `${fmtArea(geoArea(P))}<small>周囲 ${fmtLen(per)}・${P.length}点</small>`; }
+    $("#measVal").innerHTML = txt;
+    $("#measSel").hidden = !(area && P.length >= 3);
+    $$("#measMode button").forEach((b) => b.classList.toggle("on", b.dataset.m === MEAS.mode));
+  }
+  function initMeasure() {
+    $("#measBtn").onclick = (e) => { e.stopPropagation(); startMeasure(); };
+    $("#measMode").onclick = (e) => { const b = e.target.closest("button"); if (!b || !MEAS) return; MEAS.mode = b.dataset.m; drawMeasure(); };
+    $("#measUndo").onclick = () => { if (MEAS) { MEAS.pts.pop(); drawMeasure(); } };
+    $("#measClear").onclick = () => { if (MEAS) { MEAS.pts = []; drawMeasure(); } };
+    $("#measEnd").onclick = stopMeasure;
+    $("#measSel").onclick = () => {
+      if (!MEAS || MEAS.pts.length < 3) return;
+      const ring = [...MEAS.pts, MEAS.pts[0]];
+      lassoMode = "new"; stopMeasure(); finishLasso(ring);
+    };
+  }
+
   // ---------- 起動 ----------
   (async function main() {
     paintIcons();
@@ -3961,7 +4069,7 @@ window.DataStore = window.NoteStore.data;
       await ready;
       for (const n of await NoteStore.all()) notes.set(n.id, n);
       buildSpecies(); computeQuality(); buildDist();
-      addLayers(); initUI(); await initPhase1(); await initPhase2(); initDataEdits(); initPlanView(); setColorMode("sp"); refreshNotes(); applyFilters();
+      addLayers(); initUI(); await initPhase1(); await initPhase2(); initDataEdits(); initPlanView(); initMeasure(); setColorMode("sp"); refreshNotes(); applyFilters();
       const t = hashTree();
       if (t != null) selectTree(t, !/(?:^#|&)map=/.test(location.hash));
       const ld = $("#loading"); ld.style.transition = "opacity .35s"; ld.style.opacity = 0; setTimeout(() => ld.remove(), 400);
