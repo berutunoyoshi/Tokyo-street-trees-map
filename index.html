@@ -530,7 +530,9 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
 /* ===== 点検モード ===== */
 body:not(.insp) .insp-only { display: none !important; }
 body.insp .chiprow, body.insp #selBtn, body.insp #measBtn, body.insp #stepBar, body.insp #selBar, body.insp #planBar,
-body.insp #layerPop .colormodes, body.insp #layerPop .cmh, body.insp #layerPop .layer-opt, body.insp .view-only { display: none !important; }
+body.insp #layerPop .colormodes:not(#inspCm), body.insp #layerPop .cmh, body.insp #layerPop .layer-opt, body.insp .view-only { display: none !important; }
+body.insp #layerPop #opt3d.layer-opt { display: flex !important; }
+.lgsep { font-weight: 700; color: var(--muted); }
 body.insp .searchbar { box-shadow: var(--shadow-2), inset 0 0 0 2px #f5b041; }
 .insphead { pointer-events: auto; display: flex; gap: 6px; align-items: center; padding: 10px 2px 6px; overflow-x: auto; scrollbar-width: none; }
 .insphead::-webkit-scrollbar { display: none; }
@@ -694,6 +696,8 @@ body.insp .countpill { top: calc(var(--safe-t) + 112px); }
     <button class="bm" data-bm="ofm"><i style="background:linear-gradient(135deg,#f8f4ec 30%,#e6d9c3 30% 38%,#f8f4ec 38% 62%,#fff 62% 70%,#cfe3c8 70%)"></i>くっきり地図<small>OpenFreeMap</small></button>
     <button class="bm" data-bm="gsiv"><i style="background:linear-gradient(135deg,#f6f6f2 35%,#f3b97f 35% 43%,#f6f6f2 43% 60%,#c9d8ef 60%)"></i>地理院<small>ベクトル</small></button>
   </div>
+  <h3 class="insp-only">点の色分け</h3>
+  <div class="colormodes insp-only" id="inspCm" style="margin-bottom:4px"><button class="cm on" data-icm="status">点検状況</button><button class="cm" data-icm="sp">樹種</button></div>
   <h3 class="cmh">点の色分け</h3>
   <div class="colormodes">
     <button class="cm" data-cm="cat">高木・中木</button>
@@ -704,7 +708,7 @@ body.insp .countpill { top: calc(var(--safe-t) + 112px); }
   </div>
   <label class="layer-opt"><span>樹冠を表示<small>枝張から推定・拡大時に表示</small></span><span class="switch"><input id="canopyToggle" type="checkbox"><span></span></span></label>
   <label class="layer-opt"><span>倒木影響範囲を表示<small>半径＝樹高の円・拡大時に表示</small></span><span class="switch"><input id="fallToggle" type="checkbox"><span></span></span></label>
-  <label class="layer-opt"><span>樹高を立体表示（3D）<small>拡大時に表示・2本指で傾き/回転</small></span><span class="switch"><input id="toggle3d" type="checkbox"><span></span></span></label>
+  <label class="layer-opt" id="opt3d"><span>樹高を立体表示（3D）<small>拡大時に表示・2本指で傾き/回転</small></span><span class="switch"><input id="toggle3d" type="checkbox"><span></span></span></label>
 </div>
 
 <!-- 選択ツール -->
@@ -4038,7 +4042,10 @@ window.WorkStore = window.NoteStore.work;
     const feats = [];
     const domes = [];
     cand.slice(0, CFG.tree3d.maxTrees).forEach(([, i], k) => {
-      treeSolids({ ...attrForDraw(i), tint: i === selected ? "glow" : SEL.ids.has(i) ? "group" : null }, { i, lon: C.x[i], lat: C.y[i] }, feats);
+      const a = attrForDraw(i);
+      if (INSP.on && INSP.color === "status") a.kindColor = insp3DColor(i);
+      treeSolids({ ...a, tint: i === selected ? "glow" : SEL.ids.has(i) ? "group" : null }, { i, lon: C.x[i], lat: C.y[i] }, feats);
+      if (INSP.on && INSP.color === "sp") { const r = treeRec(i); if (r && r.status !== "new") feats.push({ type: "Feature", geometry: octagon(C.x[i], C.y[i], Math.max(1.8, (a.w || 2) * 0.62)), properties: { i, base: 0, top: 0.35, c: r.status === "done" ? recColor(r) : "#ef6c00" } }); }
     });
     if (map.getSource("fall3d")) map.getSource("fall3d").setData({ type: "FeatureCollection", features: domes });
     if (PLAN) for (const n of PLAN.adds) if (b.contains([n.lon, n.lat])) { const a = synthAttr(n); treeSolids({ ...a, kindColor: "#ab47bc" }, { nid: n.id, lon: n.lon, lat: n.lat }, feats); }
@@ -4427,7 +4434,7 @@ window.WorkStore = window.NoteStore.work;
   // 点検モード
   // =====================================================================
   const IC = CFG.inspect;
-  const INSP = { on: false, name: "", recs: new Map(), work: [], dirty: false, cur: null, stateIds: [], voice: null };
+  const INSP = { on: false, name: "", recs: new Map(), work: [], dirty: false, cur: null, stateIds: [], voice: null, color: "status" };
   const SKEY = { mode: "street-tree-mode", name: "street-tree-inspector" };
   const ss = { get: (k) => { try { return sessionStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch { } } };
   const ls = { get: (k, d) => { try { const v = localStorage.getItem("street-tree-" + k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set: (k, v) => { try { localStorage.setItem("street-tree-" + k, JSON.stringify(v)); } catch { } } };
@@ -4498,13 +4505,9 @@ window.WorkStore = window.NoteStore.work;
     if (fallOn) setFall(false);
     if ($("#canopyToggle")?.checked) { $("#canopyToggle").checked = false; $("#canopyToggle").dispatchEvent(new Event("change")); }
     map.setLayoutProperty("heat", "visibility", "none");
-    const has = [">=", ijExpr, 1];
-    map.setPaintProperty("trees", "circle-color", inspColorExpr());
     map.setPaintProperty("trees", "circle-opacity", 1);
-    map.setPaintProperty("trees", "circle-radius", ["interpolate", ["linear"], ["zoom"], 9, ["case", has, 2.4, 1.1], 12, ["case", has, 3.4, 1.8], 15, ["case", has, 7, 4.5], 18, ["case", has, 13, 9]]);
-    map.setPaintProperty("trees", "circle-stroke-width", ["interpolate", ["linear"], ["zoom"], 9, ["case", ["==", ijExpr, 1], 1.5, 0], 13, ["case", ["==", ijExpr, 1], 2, has, 1, 0], 15, ["case", ["==", ijExpr, 1], 3, has, 2, 1]]);
-    map.setPaintProperty("trees", "circle-stroke-color", ["case", ["==", ijExpr, 1], "#ef6c00", has, "#ffffff", "rgba(255,255,255,.85)"]);
-    if (map.getLayer("trees-beacon")) map.setPaintProperty("trees-beacon", "circle-color", inspColorExpr());
+    INSP.color = ls.get("insp-color", "status") === "sp" ? "sp" : "status";
+    setInspColor(INSP.color, true);
     map.addSource("insp-new", { type: "geojson", data: inspNewGeo() });
     map.addLayer({ id: "insp-new", type: "circle", source: "insp-new", paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 3, 15, 8, 18, 14], "circle-color": ["get", "c"],
@@ -4512,6 +4515,31 @@ window.WorkStore = window.NoteStore.work;
     applyInspStates(); renderLegend(); updateInspHead(); applyFilters();
     toast(`${name} さん、点検モードを開始しました。木をタップすると点検を入力できます`, 4000);
   }
+  // 点の色分け：status＝点検状況（未点検・下書き・判定）／sp＝樹種（点検状況は輪の色で表示）
+  function inspRingExpr() { const m = ["match", ijExpr, 1, "#ef6c00"]; IC.judges.forEach((j, k) => m.push(k + 2, j.color)); m.push(2 + IC.judges.length, NOJ.color, "#ffffff"); return m; }
+  function setInspColor(mode, quiet) {
+    INSP.color = mode; ls.set("insp-color", mode);
+    $$("#inspCm button").forEach((b) => b.classList.toggle("on", b.dataset.icm === mode));
+    const has = [">=", ijExpr, 1], dr = ["==", ijExpr, 1];
+    if (mode === "sp") {
+      map.setPaintProperty("trees", "circle-color", colorExpr("sp"));
+      map.setPaintProperty("trees", "circle-radius", ["interpolate", ["linear"], ["zoom"], 9, ["case", has, 2.6, 1.4], 12, ["case", has, 3.6, 2.2], 15, ["case", has, 7, 5], 18, ["case", has, 12, 9.5]]);
+      map.setPaintProperty("trees", "circle-stroke-width", ["interpolate", ["linear"], ["zoom"], 9, ["case", has, 1.5, 0], 13, ["case", has, 2.5, 0.5], 15, ["case", has, 4, 1], 18, ["case", has, 5, 1.2]]);
+      map.setPaintProperty("trees", "circle-stroke-color", inspRingExpr());
+      if (map.getLayer("trees-beacon")) map.setPaintProperty("trees-beacon", "circle-color", colorExpr("sp"));
+    } else {
+      map.setPaintProperty("trees", "circle-color", inspColorExpr());
+      map.setPaintProperty("trees", "circle-radius", ["interpolate", ["linear"], ["zoom"], 9, ["case", has, 2.4, 1.1], 12, ["case", has, 3.4, 1.8], 15, ["case", has, 7, 4.5], 18, ["case", has, 13, 9]]);
+      map.setPaintProperty("trees", "circle-stroke-width", ["interpolate", ["linear"], ["zoom"], 9, ["case", dr, 1.5, 0], 13, ["case", dr, 2, has, 1, 0], 15, ["case", dr, 3, has, 2, 1]]);
+      map.setPaintProperty("trees", "circle-stroke-color", ["case", dr, "#ef6c00", has, "#ffffff", "rgba(255,255,255,.85)"]);
+      if (map.getLayer("trees-beacon")) map.setPaintProperty("trees-beacon", "circle-color", inspColorExpr());
+    }
+    renderLegend(); refresh3D();
+    if (!quiet) toast(mode === "sp" ? "樹種で色分けしました（点検済みの木は輪の色で判定を表示）" : "点検状況で色分けしました");
+  }
+  // 3D表示での木の色（点検状況モード）と、樹種モードで根元に置く判定の色の円盤
+  const DRAFT3D = "#ffb74d", UNINSP3D = "#9aa89f";
+  function insp3DColor(i) { const r = treeRec(i); return !r || r.status === "new" ? UNINSP3D : r.status !== "done" ? DRAFT3D : recColor(r); }
   function inspNewGeo() {
     return { type: "FeatureCollection", features: [...INSP.recs.values()].filter((r) => r.tree == null && isFinite(r.lon)).map((r) => ({ type: "Feature", geometry: { type: "Point", coordinates: [r.lon, r.lat] }, properties: { id: r.id, c: recColor(r), d: isDone(r) ? 1 : 0 } })) };
   }
@@ -4521,10 +4549,14 @@ window.WorkStore = window.NoteStore.work;
     INSP.stateIds = [];
     for (const r of INSP.recs.values()) if (r.tree != null && r.tree < N) { map.setFeatureState({ source: "trees", id: r.tree }, { ij: recCode(r) }); INSP.stateIds.push(r.tree); }
     map.getSource("insp-new")?.setData(inspNewGeo());
+    refresh3D();
   }
   function inspLegendHTML() {
     const it = (c, t, b) => `<span class="lg"><i style="background:${c};${b ? "border:2.5px solid " + b : ""}"></i>${esc(t)}</span>`;
-    return it("#7d8f84", "未点検") + it("#fff", "下書き", "#ef6c00") + IC.judges.map((j) => it(j.color, `${j.v} ${j.label}`)).join("") + it(NOJ.color, NOJ.label);
+    const d3 = $("#toggle3d")?.checked;
+    if (INSP.color === "sp") return topSpecies.slice(0, 10).map((s, k) => it(PALETTE[k], D.sp[s])).join("") + it("#9e9e9e", "その他")
+      + `<span class="lg lgsep">${d3 ? "根元の円" : "輪"}の色：</span>` + it("#fff", "下書き", "#ef6c00") + IC.judges.map((j) => it("#fff", j.v, j.color)).join("") + it("#fff", "欠株", NOJ.color);
+    return it(d3 ? UNINSP3D : "#7d8f84", "未点検") + (d3 ? it(DRAFT3D, "下書き") : it("#fff", "下書き", "#ef6c00")) + IC.judges.map((j) => it(j.color, `${j.v} ${j.label}`)).join("") + it(NOJ.color, NOJ.label);
   }
   function doneList(name, date) {
     return [...INSP.recs.values()].filter((r) => isDone(r) && r.inspector === name && r.doneDate === date).sort((a, b) => (a.doneAt || "").localeCompare(b.doneAt || ""));
@@ -4859,7 +4891,7 @@ window.WorkStore = window.NoteStore.work;
   }
 
   // ---------- 共通のダイアログ ----------
-  function dialog({ title, body = "", ok = "OK", cancel = null, tone = "", icon = "", camera = false }) {
+  function dialog({ title, body = "", ok = "OK", cancel = null, tone = "", icon = "", camera = false, onOk = null }) {
     return new Promise((res) => {
       const d = document.createElement("div"); d.className = "modal-wrap";
       d.innerHTML = `<div class="modal ${tone}" role="dialog" aria-modal="true">${icon ? `<div class="m-ic">${ic(icon)}</div>` : ""}<h3>${title}</h3><div class="modal-body">${body}</div>
@@ -4867,13 +4899,13 @@ window.WorkStore = window.NoteStore.work;
       document.body.appendChild(d);
       const close = (v) => { d.remove(); res(v); };
       d.querySelector('[data-r="0"]')?.addEventListener("click", () => close(false));
-      d.querySelector('[data-r="1"]')?.addEventListener("click", () => close(true));
+      d.querySelector('[data-r="1"]')?.addEventListener("click", () => { if (onOk) onOk(); close(true); });
       const fi = d.querySelector("input[type=file]"); if (fi) fi.onchange = () => close(fi.files[0] || false);
     });
   }
 
   // ---------- 点検一覧 ----------
-  const IL = { date: "today", who: "", j: "", q: "" };
+  const IL = { date: "all", who: "", j: "", q: "" };
   const recDate = (r) => r.doneDate || (r.updated ? localDate(new Date(r.updated)) : "");
   function recItem(r, extra = "") {
     const j = judgeOf(r.judge), draft = r.status !== "done";
@@ -4899,7 +4931,7 @@ window.WorkStore = window.NoteStore.work;
   function renderInspList() {
     const all = [...INSP.recs.values()].filter((r) => r.status !== "new");
     const dates = [...new Set(all.map(recDate).filter(Boolean))].sort().reverse(), whos = [...new Set(all.map((r) => r.inspector).filter(Boolean))].sort();
-    if (IL.date !== "today" && IL.date !== "all" && !dates.includes(IL.date)) IL.date = "today";
+    if (IL.date !== "today" && IL.date !== "all" && !dates.includes(IL.date)) IL.date = "all";
     const { base, f } = inspListData();
     const cnt = (k) => base.filter(f[k]).length;
     const segs = [["", "すべて"], ...IC.judges.map((j) => [j.v, `${j.v} ${j.label}`]), ["-", NOJ.label], ["draft", "下書き"], ["mark", "マーキング未"]];
@@ -5030,10 +5062,10 @@ window.WorkStore = window.NoteStore.work;
       <div class="listhead"><span>${list.length}本中 <b>${chosen.length}本</b>を選択</span><span><button class="btn line minibtn" data-rp="all">全選択</button> <button class="btn line minibtn" data-rp="none">解除</button></span></div>
       ${chosen.length ? `<div class="jsum">${IC.judges.map((j) => `<span><i style="background:${j.color}"></i>${j.v} ${chosen.filter((r) => r.judge === j.v).length}</span>`).join("")}<span><i style="background:${NOJ.color}"></i>${NOJ.label} ${chosen.filter((r) => !judgeOf(r.judge)).length}</span></div>` : ""}
       <ol class="list checklist">${list.length ? list.map((r) => `<li><label class="item"><input type="checkbox" data-rsel="${esc(r.id)}"${RP.sel.has(r.id) ? " checked" : ""}>${recItem(r)}</label></li>`).join("") : `<li class="empty">${ic("check")}この日に完了した点検はありません</li>`}</ol>
-      <div class="sticky-foot"><button class="btn sub" data-rp="save">Excel保存</button><button class="btn main" data-rp="send"${chosen.length ? "" : " disabled"}>${ic("send")}速報をメール送信</button></div>
-      <button class="btn line block" data-rp="mailto" style="margin-top:10px">メール作成画面を開く（宛先・件名・本文入り）</button>
-      <div class="notebox"><b>送信のしかた</b><br>「速報をメール送信」で速報ファイルを作成し、端末の共有メニューを開きます。<b>メールアプリ</b>を選ぶと、ファイルが添付された状態でメールが作成されます。宛先はコピー済みなので、宛先欄に貼り付けて送信してください。<br>
-        共有メニューが使えない端末では、ファイルを保存したうえで宛先・件名・本文入りのメール作成画面を開きます（ファイルは手動で添付してください）。送信した木には「速報済」の印が付きます。</div>`;
+      <div class="sticky-foot"><button class="btn sub" data-rp="save">Excel保存</button><button class="btn main" data-rp="send"${chosen.length ? "" : " disabled"}>${ic("send")}メールを作成</button></div>
+      <div class="notebox"><b>メールの作成</b><br>「メールを作成」で速報ファイル（Excel・写真ZIP）と本文を用意し、メールを作成します。<br>
+        <b>パソコン</b>：メールファイル（.eml）を保存します。開くと Outlook などで<b>宛先・件名・本文・添付ファイルがすべて入った作成画面</b>が開くので、送信を押してください。<br>
+        <b>スマートフォン</b>：共有メニューでメールアプリを選ぶと、<b>件名・本文・添付ファイル入り</b>のメールが作成されます。宛先は自動でコピーされるので、宛先欄に貼り付けてください（スマートフォンの仕組み上、宛先だけは自動で入れられません）。<br>送信した木には「速報済」の印が付きます。</div>`;
   }
   function reportMeta(list) {
     const who = RP.who === "all" ? [...new Set(list.map((r) => r.inspector))].join("、") : INSP.name;
@@ -5061,18 +5093,58 @@ window.WorkStore = window.NoteStore.work;
     if (act === "none") { RP.sel = new Set(); renderReport(); return; }
     if (!list.length) { toast("提出する木を選んでください"); return; }
     const meta = reportMeta(list), to = $("#rpTo").value.trim();
-    if (act === "mailto") { openMailto(to, meta.subject, reportBody(list, meta) + "\n\n※速報ファイルを添付してください。"); return; }
     toast("速報ファイルを作成しています…", 2500);
     let files; try { files = await reportFiles(list, meta); } catch (e) { toast(e.message || "ファイルを作成できませんでした", 4000); return; }
     if (act === "save") { for (const f of files) saveBlob(f, f.name); toast("速報ファイルを保存しました"); return; }
     if (to && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) { toast("送信先のメールアドレスを確認してください", 3500); return; }
-    if (!to && !(await dialog({ tone: "warn", icon: "warn", title: "送信先が未入力です", body: "<p>送信先メールアドレスが入力されていません。このまま共有メニューを開きますか？</p>", ok: "このまま開く", cancel: "戻る" }))) return;
-    const res = await sendFiles(files, meta.subject, reportBody(list, meta), to);
-    if (res === "cancel") return;
+    if (!to && !(await dialog({ tone: "warn", icon: "warn", title: "送信先が未入力です", body: "<p>送信先メールアドレスが入力されていません。宛先なしでメールを作成しますか？</p>", ok: "このまま作成", cancel: "戻る" }))) return;
+    const res = await composeMail(files, meta.subject, reportBody(list, meta), to);
+    if (!res) return;
     const now = new Date().toISOString();
     for (const r of list) { r.reportedAt = now; await InspStore.put(r, true); }
     applyInspStates(); renderReport();
-    toast(res === "shared" ? (to ? "宛先をコピーしました。メールアプリで宛先に貼り付けて送信してください" : "共有メニューを開きました") : "ファイルを保存し、メール作成画面を開きました。ファイルを添付して送信してください", 5500);
+  }
+  const isMobileDev = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+  // メールを作成：スマホ＝共有メニュー（件名・本文・添付入り。宛先はコピー）／パソコン＝宛先・件名・本文・添付入りのメールファイル（.eml）
+  async function composeMail(files, subject, body, to) {
+    const sum = `<div class="card small" style="text-align:left"><b>宛先</b>：${esc(to || "（未入力）")}<br><b>件名</b>：${esc(subject)}<br><b>添付</b>：${files.map((f) => esc(f.name)).join("<br>")}</div>`;
+    if (isMobileDev() && navigator.share && navigator.canShare && navigator.canShare({ files })) {
+      let shared = null;
+      // 共有はボタンを押した直後に呼ぶ必要があるため、ダイアログのボタンから直接開く
+      const ok = await dialog({ icon: "send", title: "メールの準備ができました", body: `${sum}<p class="small">「メールアプリを開く」→ 共有メニューで<b>メール</b>を選ぶと、件名・本文・添付ファイル入りのメールが作成されます。${to ? "<b>宛先はコピー済み</b>なので、宛先欄を長押しして貼り付けてください。" : ""}</p>`,
+        ok: "メールアプリを開く", cancel: "やめる",
+        onOk: () => { if (to) { try { navigator.clipboard.writeText(to); } catch { } } shared = navigator.share({ files, title: subject, text: body }); } });
+      if (!ok) return false;
+      try { await shared; } catch (e) { if (e && e.name === "AbortError") return false; toast("共有メニューを開けませんでした。パソコンでの送信をお試しください", 4500); return false; }
+      toast(to ? "送信後、「速報済」になります。宛先は貼り付けてください" : "メールアプリに渡しました", 4000);
+      return true;
+    }
+    // パソコン：宛先・件名・本文・添付ファイル入りの下書きメール（.eml）
+    let eml; try { eml = await buildEml(to, subject, body, files); } catch { eml = null; }
+    if (!eml) { for (const f of files) saveBlob(f, f.name); openMailto(to, subject, body + "\n\n※保存したファイルを添付してください。"); return true; }
+    const name = files[0].name.replace(/\.xlsx$/, "") + ".eml";
+    saveBlob(eml, name);
+    const again = await dialog({ icon: "send", title: "メールファイルを保存しました", body: `${sum}<p class="small">保存した <b>${esc(name)}</b> を開くと、Outlook などのメールソフトで<b>宛先・件名・本文・添付ファイルが入った作成画面</b>が開きます。内容を確認して送信してください。</p><p class="small muted">うまく開かない場合は「添付は手動で」を押すと、ファイルを保存して宛先・件名・本文入りのメール作成画面を開きます。</p>`,
+      ok: "閉じる", cancel: "添付は手動で" });
+    if (!again) { for (const f of files) saveBlob(f, f.name); openMailto(to, subject, body + `\n\n※保存したファイル（${files.map((f) => f.name).join("、")}）を添付してください。`); }
+    return true;
+  }
+  // 下書きメール（RFC 822 / MIME）。X-Unsent: 1 で、開くと送信前の作成画面になる
+  const blobB64 = (blob) => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1] || ""); fr.onerror = rej; fr.readAsDataURL(blob); });
+  const wrap76 = (b) => b.replace(/.{1,76}/g, "$&\r\n");
+  async function buildEml(to, subject, body, files) {
+    const u8 = async (s) => blobB64(new Blob([s], { type: "text/plain" }));
+    const encW = async (s) => `=?UTF-8?B?${await u8(s)}?=`;
+    const bd = "----=_street_tree_" + uid();
+    const parts = [`To: ${to || ""}`, `Subject: ${await encW(subject)}`, "MIME-Version: 1.0", "X-Unsent: 1", `Date: ${new Date().toUTCString()}`, `Content-Type: multipart/mixed; boundary="${bd}"`, "", "This is a multi-part message in MIME format.", "",
+      `--${bd}`, "Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64", "", wrap76(await u8(body.replace(/\r?\n/g, "\r\n")))];
+    for (const f of files) {
+      const nm = await encW(f.name);
+      parts.push(`--${bd}`, `Content-Type: ${f.type || "application/octet-stream"}; name="${nm}"`, "Content-Transfer-Encoding: base64",
+        `Content-Disposition: attachment; filename="${nm}"; filename*=UTF-8''${encodeURIComponent(f.name)}`, "", wrap76(await blobB64(f)));
+    }
+    parts.push(`--${bd}--`, "");
+    return new Blob([parts.join("\r\n")], { type: "message/rfc822" });
   }
 
   // ---------- 設定・データ（集約） ----------
@@ -5176,6 +5248,7 @@ window.WorkStore = window.NoteStore.work;
   function initInsp() {
     $("#inspHead").onclick = (e) => { if (e.target.closest("#inspWarn")) openSheet("worklog"); else if (e.target.closest("#inspWho")) openSheet("inspmenu"); else openSheet("insplist"); };
     $("#nextBtn").onclick = () => { $("#layerPop").hidden = true; nextUninspected(); };
+    $$("#inspCm button").forEach((b) => b.onclick = () => setInspColor(b.dataset.icm));
     $("#inspAddOk").onclick = confirmInspAdd; $("#inspAddCancel").onclick = stopInspAdd;
     $("#onlyUninsp").onchange = (e) => { F.uninsp = e.target.checked; applyFilters(); };
     $("#backToMode").onclick = backToModeSelect;
