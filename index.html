@@ -465,7 +465,8 @@ body.sheet-full .stepbar, .lassoing .stepbar, .measuring .stepbar, .adding .step
   background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-2); padding: 14px;
 }
 .popover h3 { font-size: 12px; margin: 0 0 8px; color: var(--muted); letter-spacing: .04em; }
-.basemaps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+.basemaps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+.bm small { display: block; font-size: 9.5px; font-weight: 600; margin-top: -3px; }
 .bm { border: 0; background: none; padding: 0; font-size: 11px; font-weight: 700; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .bm i { width: 54px; height: 54px; border-radius: 12px; display: block; box-shadow: inset 0 0 0 1px var(--line); }
 .bm.on { color: var(--accent); }
@@ -578,6 +579,8 @@ body.sheet-full .fabs, body.sheet-full .countpill, body.sheet-full .legend, body
     <button class="bm" data-bm="std"><i style="background:linear-gradient(135deg,#fbf6e9 40%,#f7c873 40% 50%,#cde7c4 50%)"></i>標準</button>
     <button class="bm" data-bm="photo"><i style="background:linear-gradient(135deg,#4b5b3f,#7a8a66 50%,#3d4a35)"></i>航空写真</button>
     <button class="bm" data-bm="osm"><i style="background:linear-gradient(135deg,#f2efe9 40%,#fcd6a4 40% 50%,#aad3df 50%)"></i>OSM</button>
+    <button class="bm" data-bm="ofm"><i style="background:linear-gradient(135deg,#f8f4ec 30%,#e6d9c3 30% 38%,#f8f4ec 38% 62%,#fff 62% 70%,#cfe3c8 70%)"></i>くっきり地図<small>OpenFreeMap</small></button>
+    <button class="bm" data-bm="gsiv"><i style="background:linear-gradient(135deg,#f6f6f2 35%,#f3b97f 35% 43%,#f6f6f2 43% 60%,#c9d8ef 60%)"></i>地理院<small>ベクトル</small></button>
   </div>
   <h3>点の色分け</h3>
   <div class="colormodes">
@@ -1193,6 +1196,11 @@ window.APP_CONFIG = {
   },
   // 絞り込み結果が少ないときの強調表示（beacon 本数以下で目立つ印）と、◀▶で順に見られる最大本数
   sparse: { beacon: 500, stepper: 3000 },
+  // ベクトル地図（拡大しても文字や線がぼやけない背景地図）のスタイルURL
+  vectorStyles: {
+    ofm: "https://tiles.openfreemap.org/styles/liberty",
+    gsiv: "https://gsi-cyberjapan.github.io/gsivectortile-mapbox-gl-js/std.json",
+  },
   // PDF・印刷に載せる樹木一覧の最大行数
   print: { maxTrees: 500 },
   quickSpecies: ["イチョウ", "サクラ", "ケヤキ", "ハナミズキ", "スズカケノキ", "トウカエデ", "クスノキ", "キンモクセイ", "モミジバフウ", "ユリノキ"],
@@ -1347,25 +1355,30 @@ window.DataStore = window.NoteStore.data;
 
   // ---------- 地図 ----------
   let map, geo;
-  function createMap() {
+  // 画像タイルの背景地図（国土地理院・OSM）。visible に表示するものを指定
+  const RASTER_KEYS = ["pale", "std", "photo", "osm"];
+  function rasterStyle(visible) {
     const GSI = "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>";
     const raster = (url, max, attr) => ({ type: "raster", tiles: [url], tileSize: 256, maxzoom: max, attribution: attr });
+    return {
+      version: 8,
+      sources: {
+        pale: raster("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", 18, GSI),
+        std: raster("https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png", 18, GSI),
+        photo: raster("https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg", 18, GSI),
+        osm: raster("https://tile.openstreetmap.org/{z}/{x}/{y}.png", 19, "© <a href='https://www.openstreetmap.org/copyright' target='_blank'>OpenStreetMap</a>"),
+      },
+      layers: [
+        { id: "bg", type: "background", paint: { "background-color": "#eef1ea" } },
+        ...RASTER_KEYS.map((k) => ({ id: "base-" + k, type: "raster", source: k, layout: { visibility: k === visible ? "visible" : "none" } })),
+      ],
+    };
+  }
+  function createMap() {
     map = new maplibregl.Map({
       container: "map", hash: "map", center: CFG.center, zoom: CFG.zoom, maxZoom: 19, minZoom: 8,
       attributionControl: { compact: true }, preserveDrawingBuffer: true, dragRotate: false, pitchWithRotate: true, touchPitch: false, maxPitch: 70,
-      style: {
-        version: 8,
-        sources: {
-          pale: raster("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", 18, GSI),
-          std: raster("https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png", 18, GSI),
-          photo: raster("https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg", 18, GSI),
-          osm: raster("https://tile.openstreetmap.org/{z}/{x}/{y}.png", 19, "© <a href='https://www.openstreetmap.org/copyright' target='_blank'>OpenStreetMap</a>"),
-        },
-        layers: [
-          { id: "bg", type: "background", paint: { "background-color": "#eef1ea" } },
-          ...["pale", "std", "photo", "osm"].map((k) => ({ id: "base-" + k, type: "raster", source: k, layout: { visibility: k === "pale" ? "visible" : "none" } })),
-        ],
-      },
+      style: rasterStyle("pale"),
     });
     map.touchZoomRotate.disableRotation();
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
@@ -2011,10 +2024,7 @@ window.DataStore = window.NoteStore.data;
 
     // 表示設定
     $("#layerBtn").onclick = (e) => { e.stopPropagation(); $("#layerPop").hidden = !$("#layerPop").hidden; };
-    $$(".bm").forEach((b) => b.onclick = () => {
-      $$(".bm").forEach((x) => x.classList.toggle("on", x === b));
-      ["pale", "std", "photo", "osm"].forEach((k) => map.setLayoutProperty("base-" + k, "visibility", k === b.dataset.bm ? "visible" : "none"));
-    });
+    $$(".bm").forEach((b) => b.onclick = () => switchBasemap(b.dataset.bm));
     $$(".cm").forEach((b) => b.onclick = () => { setColorMode(b.dataset.cm); renderChipRow(); });
     document.addEventListener("click", (e) => { if (!e.target.closest("#layerPop, #layerBtn")) $("#layerPop").hidden = true; });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (MEAS) stopMeasure(); else if (addMode) stopAdd(); else closeSheet(); } });
@@ -3832,6 +3842,7 @@ window.DataStore = window.NoteStore.data;
         "fill-extrusion-color": ["coalesce", ["get", "c"], "#e65100"], "fill-extrusion-height": ["get", "top"], "fill-extrusion-base": ["get", "base"], "fill-extrusion-opacity": 0.35 } });
     }
     $("#toggle3d").checked = on;
+    update3DBuildings();
     map.setLayoutProperty("fallall", "visibility", fallOn ? "visible" : "none");
     map.setLayoutProperty("trees3d", "visibility", on ? "visible" : "none");
     map.setLayoutProperty("trees", "visibility", on ? "none" : "visible");
@@ -4139,6 +4150,59 @@ window.DataStore = window.NoteStore.data;
     $("#stepNext").onclick = () => stepGo(1);
     $("#stepInfo").onclick = () => { if (stepPos < 0) stepGo(1); else { selectTree(stepList[stepPos], false); setSheetSize("half"); } };
     $("#stepClose").onclick = () => { stepHidden = true; $("#stepBar").hidden = true; document.body.classList.remove("stepping"); };
+  }
+
+  // =====================================================================
+  // 背景地図の切り替え（画像タイル ⇔ ベクトル地図）
+  // =====================================================================
+  // ベクトル地図に切り替えるときは、背景だけを入れ替えて、アプリの木・選択・計画などのレイヤーはそのまま残す
+  let baseKind = "pale", baseLayerIds = new Set(["bg", ...RASTER_KEYS.map((k) => "base-" + k)]), baseSourceIds = new Set(RASTER_KEYS), switching = false;
+  async function switchBasemap(key) {
+    if (switching || key === baseKind) return;
+    const isVec = (k) => k in CFG.vectorStyles;
+    $$(".bm").forEach((x) => x.classList.toggle("on", x.dataset.bm === key));
+    // 画像タイルどうしは表示の切り替えだけ
+    if (!isVec(key) && !isVec(baseKind)) { RASTER_KEYS.forEach((k) => map.setLayoutProperty("base-" + k, "visibility", k === key ? "visible" : "none")); baseKind = key; return; }
+    switching = true;
+    let next;
+    try {
+      next = isVec(key) ? await (await fetch(CFG.vectorStyles[key])).json() : rasterStyle(key);
+    } catch (e) {
+      switching = false; toast("背景地図を読み込めませんでした。通信環境を確認してください", 4000);
+      $$(".bm").forEach((x) => x.classList.toggle("on", x.dataset.bm === baseKind)); return;
+    }
+    // ベクトル地図のレイヤー名がアプリのレイヤーと重ならないよう接頭辞を付ける
+    if (isVec(key)) {
+      const ren = new Map();
+      next.sources = Object.fromEntries(Object.entries(next.sources).map(([k, v]) => { const nk = "vb-" + k; ren.set(k, nk); return [nk, v]; }));
+      next.layers = next.layers.map((l) => ({ ...l, id: "vb-" + l.id, ...(l.source ? { source: ren.get(l.source) || l.source } : {}) }));
+    }
+    const newBaseLayers = new Set(next.layers.map((l) => l.id)), newBaseSources = new Set(Object.keys(next.sources));
+    const oldBaseLayers = baseLayerIds, oldBaseSources = baseSourceIds;
+    map.setStyle(next, {
+      diff: false,
+      transformStyle: (prev, nx) => {
+        const appSources = Object.fromEntries(Object.entries(prev.sources).filter(([k]) => !oldBaseSources.has(k)));
+        const appLayers = prev.layers.filter((l) => !oldBaseLayers.has(l.id));
+        return { ...nx, sources: { ...nx.sources, ...appSources }, layers: [...nx.layers, ...appLayers] };
+      },
+    });
+    map.once("style.load", () => {
+      baseKind = key; baseLayerIds = newBaseLayers; baseSourceIds = newBaseSources; switching = false;
+      map.setMaxZoom(isVec(key) ? 20 : 19);
+      // 地図スタイルを入れ替えると「選択中」などの状態が消えるので付け直す
+      SEL.ids.forEach((i) => map.setFeatureState({ source: "trees", id: i }, { sel: true }));
+      planStateIds = []; applyPlanStates();
+      update3DBuildings();
+      refresh3D(); renderLegend();
+      toast(key === "ofm" ? "くっきり地図（OpenFreeMap）に切り替えました。3D表示では建物も立体になります" : key === "gsiv" ? "地理院地図（ベクトル）に切り替えました" : "背景地図を切り替えました", 3000);
+    });
+  }
+  // OpenFreeMap の建物の立体（3D表示中だけ表示）
+  function update3DBuildings() {
+    const on = $("#toggle3d")?.checked;
+    if (map.getLayer("vb-building-3d")) map.setLayoutProperty("vb-building-3d", "visibility", on ? "visible" : "none");
+    if (map.getLayer("vb-building")) map.setLayoutProperty("vb-building", "visibility", "visible");
   }
 
   // ---------- 起動 ----------
