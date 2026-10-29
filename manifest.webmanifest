@@ -1,0 +1,16 @@
+{
+  "name": "東京23区 街路樹マップ",
+  "short_name": "街路樹マップ",
+  "description": "街路樹の閲覧・点検アプリ（オフライン対応）",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1f5c3a",
+  "theme_color": "#1f5c3a",
+  "lang": "ja",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
